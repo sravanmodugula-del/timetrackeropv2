@@ -118,18 +118,14 @@ async function getSession() {
   // Try to use MS SQL session store in production, fallback to memory store
   if (isProduction) {
     try {
-      // Import connect-mssql-v2 package
-      const connectMssqlModule = await import('connect-mssql-v2');
-      
-      // Check if this is the default export pattern
-      const connectMssql = connectMssqlModule.default || connectMssqlModule;
-      
-      // connect-mssql-v2 is a factory function that returns the store constructor
-      const MSSQLStore = connectMssql(session);
+      // Import connect-mssql-v2 package (factory function pattern)
+      const connectMssql = await import('connect-mssql-v2');
+      const MSSQLStoreFactory = connectMssql.default || connectMssql;
+      const MSSQLStore = MSSQLStoreFactory(session);
       
       const config = loadFmbOnPremConfig();
 
-      // Create MS SQL session store
+      // Create MS SQL session store with connect-mssql-v2
       sessionConfig.store = new MSSQLStore({
         server: config.database.server,
         port: config.database.port,
@@ -145,7 +141,7 @@ async function getSession() {
         },
         table: 'sessions',
         autoRemove: 'interval',
-        autoRemoveInterval: 5,
+        autoRemoveInterval: 5, // 5 minutes
         schemaName: 'dbo'
       });
 
@@ -158,7 +154,19 @@ async function getSession() {
         stack: error?.stack || 'NO_STACK',
         fullError: JSON.stringify(error, Object.getOwnPropertyNames(error))
       });
-      enhancedLog('WARN', 'SESSION', 'Using memory session store as fallback');
+      
+      // Use memorystore as fallback
+      try {
+        const MemoryStore = (await import('memorystore')).default;
+        sessionConfig.store = MemoryStore(session)({
+          checkPeriod: 86400000, // prune expired entries every 24h
+          ttl: sessionTtl,
+          max: 10000 // max 10k sessions
+        });
+        enhancedLog('WARN', 'SESSION', 'Using memorystore as fallback for session storage');
+      } catch (memoryStoreError) {
+        enhancedLog('WARN', 'SESSION', 'Using default memory session store as final fallback');
+      }
     }
   } else {
     enhancedLog('INFO', 'SESSION', 'Using memory session store for development');
