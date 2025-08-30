@@ -411,27 +411,37 @@ GO
 -- =============================================================================
 -- Insert sample time entries
 -- =============================================================================
-INSERT INTO time_entries (id, user_id, project_id, description, hours, duration, date, start_time, end_time, is_billable, created_at, updated_at)
+INSERT INTO time_entries (id, user_id, project_id, task_id, description, hours, duration, date, start_time, end_time, is_billable, created_at, updated_at)
 VALUES 
-('te-001', 'admin-001', 'proj-sample', 'Morning development work', 1.5, 1.5, '2024-01-15', '2024-01-15 09:00:00', '2024-01-15 10:30:00', 1, GETDATE(), GETDATE()),
-('te-002', 'admin-001', 'proj-sample', 'Testing and debugging', 1.25, 1.25, '2024-01-15', '2024-01-15 10:45:00', '2024-01-15 12:00:00', 1, GETDATE(), GETDATE()),
-('te-003', 'admin-001', 'proj-sample', 'System configuration', 2.5, 2.5, '2024-01-15', '2024-01-15 14:00:00', '2024-01-15 16:30:00', 1, GETDATE(), GETDATE());
+('te-001', 'admin-001', 'proj-sample', 'task-001', 'Morning development work', 1.5, 1.5, '2024-01-15', '2024-01-15 09:00:00', '2024-01-15 10:30:00', 1, GETDATE(), GETDATE()),
+('te-002', 'admin-001', 'proj-sample', 'task-002', 'Testing and debugging', 1.25, 1.25, '2024-01-15', '2024-01-15 10:45:00', '2024-01-15 12:00:00', 1, GETDATE(), GETDATE()),
+('te-003', 'admin-001', 'proj-sample', 'task-001', 'System configuration', 2.5, 2.5, '2024-01-15', '2024-01-15 14:00:00', '2024-01-15 16:30:00', 1, GETDATE(), GETDATE());
 
 PRINT 'Sample time entries inserted successfully';
 
 -- =============================================================================
--- Create sessions table for MS SQL session store
+-- Create optimized sessions table for MS SQL session store
 -- =============================================================================
 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='sessions' AND xtype='U')
 BEGIN
     CREATE TABLE sessions (
         sid NVARCHAR(255) NOT NULL PRIMARY KEY,
-        session NTEXT NOT NULL,
-        expires DATETIME NULL
+        session NVARCHAR(MAX) NOT NULL, -- Use NVARCHAR(MAX) instead of NTEXT for better performance
+        expires DATETIME2(3) NULL, -- Use DATETIME2 for better precision and performance
+        created_at DATETIME2(3) NOT NULL DEFAULT GETDATE(),
+        last_accessed DATETIME2(3) NULL
     );
 
-    -- Create index on expires column for automatic cleanup
-    CREATE INDEX IX_sessions_expires ON sessions(expires);
+    -- Optimized indexes for session operations
+    CREATE INDEX IX_sessions_expires ON sessions(expires) WHERE expires IS NOT NULL;
+    CREATE INDEX IX_sessions_last_accessed ON sessions(last_accessed) WHERE last_accessed IS NOT NULL;
+    CREATE INDEX IX_sessions_created_expires ON sessions(created_at, expires);
+    
+    -- Add constraint to ensure expires is in the future
+    ALTER TABLE sessions ADD CONSTRAINT CK_sessions_expires_future 
+        CHECK (expires IS NULL OR expires > created_at);
+    
+    PRINT 'Optimized sessions table created with performance indexes';);
 
     PRINT 'Sessions table created successfully';
 END
