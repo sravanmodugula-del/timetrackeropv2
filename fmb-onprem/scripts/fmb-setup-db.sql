@@ -1,4 +1,3 @@
-
 -- =============================================================================
 -- FMB TimeTracker Database Setup for MS SQL Server
 -- Target: HUB-SQL1TST-LIS
@@ -407,6 +406,39 @@ VALUES ('dept-it', 'Information Technology', 'IT Department', 'org-fmb', 'emp-ad
 -- Sample project
 INSERT INTO projects (id, name, description, status, organization_id, department_id, manager_id, user_id, allow_time_tracking)
 VALUES ('proj-sample', 'TimeTracker Setup', 'Initial system setup and testing', 'active', 'org-fmb', 'dept-it', 'admin-001', 'admin-001', 1);
+GO
+
+-- =============================================================================
+-- Insert sample time entries
+-- =============================================================================
+INSERT INTO time_entries (id, user_id, project_id, task_id, start_time, end_time, duration_minutes, description, is_billable, created_at, updated_at)
+VALUES 
+(1, 1, 1, 1, '2024-01-15 09:00:00', '2024-01-15 10:30:00', 90, 'Morning development work', 1, GETDATE(), GETDATE()),
+(2, 1, 1, 2, '2024-01-15 10:45:00', '2024-01-15 12:00:00', 75, 'Testing and debugging', 1, GETDATE(), GETDATE()),
+(3, 2, 2, 3, '2024-01-15 14:00:00', '2024-01-15 16:30:00', 150, 'Client meeting and planning', 1, GETDATE(), GETDATE());
+
+PRINT 'Sample data inserted successfully';
+
+-- =============================================================================
+-- Create sessions table for MS SQL session store
+-- =============================================================================
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='sessions' AND xtype='U')
+BEGIN
+    CREATE TABLE sessions (
+        sid NVARCHAR(255) NOT NULL PRIMARY KEY,
+        session NTEXT NOT NULL,
+        expires DATETIME NULL
+    );
+
+    -- Create index on expires column for automatic cleanup
+    CREATE INDEX IX_sessions_expires ON sessions(expires);
+
+    PRINT 'Sessions table created successfully';
+END
+ELSE
+BEGIN
+    PRINT 'Sessions table already exists';
+END;
 GO
 
 -- =============================================================================
