@@ -1,601 +1,67 @@
-PS C:\Users\ADM91381> cd..
+? Sessions table created successfully
 
-PS C:\Users> cd..
+(1 row affected)
 
-PS C:\> cd .\fmb-timetracker
+(1 row affected)
 
-PS C:\fmb-timetracker> # FMB TimeTracker On-Premises Deployment Script for Windows
-# Updates the application with new version
+(1 row affected)
 
-param(
-    [string]$InstallPath = "C:\fmb-timetracker",
-    [string]$ServiceName = "FMBTimeTracker"
-)
+(1 row affected)
 
-Write-Host "🚀 FMB TimeTracker Deployment (Windows)" -ForegroundColor Green
-Write-Host "======================================" -ForegroundColor Green
+(1 row affected)
 
-# Check if running as Administrator
-if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
-    Write-Host "❌ This script must be run as Administrator" -ForegroundColor Red
-    exit 1
-}
-
-
-
-# Ensure required directories exist
-Write-Host "📁 Creating required directories..." -ForegroundColor Yellow
-if (-not (Test-Path "$InstallPath\logs")) {
-    New-Item -ItemType Directory -Path "$InstallPath\logs" -Force | Out-Null
-}
-Write-Host "✅ Directories created" -ForegroundColor Green
-
-# Check for .env file
-Write-Host "🔍 Validating environment configuration..." -ForegroundColor Yellow
-if (-not (Test-Path ".env")) {
-    Write-Host "⚠️ .env file not found. Checking for .env.fmb-onprem..." -ForegroundColor Yellow
-    if (Test-Path "fmb-onprem/.env.fmb-onprem") {
-        Copy-Item "fmb-onprem/.env.fmb-onprem" ".env"
-        Write-Host "✅ Copied .env.fmb-onprem to .env" -ForegroundColor Green
-    } else {
-        Write-Host "❌ No environment file found. Please create .env with required configuration." -ForegroundColor Red
-        exit 1
-    }
-} else {
-    Write-Host "✅ Environment file found" -ForegroundColor Green
-}
-
-# Stop PM2 processes
-Write-Host "⏹️ Stopping application..." -ForegroundColor Yellow
-try {
-    Set-Location $InstallPath
-    npx pm2 stop ecosystem.config.cjs
-    Write-Host "✅ Application stopped" -ForegroundColor Green
-} catch {
-    Write-Host "⚠️ Could not stop PM2 processes gracefully" -ForegroundColor Yellow
-}
-
-# Update application
-Write-Host "📦 Installing all dependencies..." -ForegroundColor Yellow
-try {
-    # Ensure we install all dependencies including dev dependencies
-    npm install --include=dev
-    Write-Host "✅ All dependencies installed" -ForegroundColor Green
-} catch {
-    Write-Host "❌ Failed to install dependencies" -ForegroundColor Red
-    exit 1
-}
-
-# Build application
-Write-Host "🔨 Building application..." -ForegroundColor Yellow
-try {
-    npm run build
-
-    # Copy FMB on-premises configuration files to dist
-    Write-Host "📋 Copying FMB configuration files..." -ForegroundColor Yellow
-    if (-not (Test-Path "dist/fmb-onprem")) {
-        New-Item -ItemType Directory -Path "dist/fmb-onprem" -Force | Out-Null
-        New-Item -ItemType Directory -Path "dist/fmb-onprem/config" -Force | Out-Null
-    }
-
-    # Build the TypeScript files for on-prem configs
-    npx tsc fmb-onprem/config/fmb-env.ts --outDir dist --target es2020 --module es2020 --moduleResolution node --allowSyntheticDefaultImports --esModuleInterop
-    npx tsc fmb-onprem/config/fmb-database.ts --outDir dist --target es2020 --module es2020 --moduleResolution node --allowSyntheticDefaultImports --esModuleInterop
-
-    # Verify build artifacts exist
-    if (-not (Test-Path "dist")) {
-        Write-Host "❌ Build directory not found" -ForegroundColor Red
-        exit 1
-    }
-
-    if (-not (Test-Path "dist/index.js")) {
-        Write-Host "❌ Server build not found" -ForegroundColor Red
-        exit 1
-    }
-
-    Write-Host "✅ Application built successfully" -ForegroundColor Green
-} catch {
-    Write-Host "❌ Build failed" -ForegroundColor Red
-    Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
-    exit 1
-}
-
-# Skip cleaning dev dependencies to avoid missing Vite plugin errors
-Write-Host "📦 Keeping all dependencies for Vite compatibility..." -ForegroundColor Yellow
-Write-Host "✅ Dependencies preserved for production build" -ForegroundColor Green
-
-# Health check
-Write-Host "🔍 Running configuration health check..." -ForegroundColor Yellow
-try {
-    # Only validate FMB environment if actually deploying on-premises
-    # For Replit deployment, skip FMB-specific validation
-    $isFmbOnPrem = $env:FMB_DEPLOYMENT -eq "onprem" -and $env:NODE_ENV -eq "production"
-    if ($isFmbOnPrem) {
-        $env:NODE_ENV = "production"
-
-        # Check if built config exists, otherwise use ts-node for health check
-        if (Test-Path "dist/fmb-onprem/config/fmb-env.js") {
-            node -e "
-            import('./dist/fmb-onprem/config/fmb-env.js').then(config => {
-              config.loadFmbOnPremConfig();
-              console.log('✅ Configuration valid');
-            }).catch(err => {
-              console.error('❌ Config error:', err.message);
-              process.exit(1);
-            });
-            " --input-type=module
-        } else {
-            # Basic FMB environment variable check
-            $requiredVars = @('FMB_SESSION_SECRET', 'FMB_DB_SERVER', 'FMB_DB_NAME')
-            $missing = @()
-            foreach ($var in $requiredVars) {
-                if (-not (Get-ChildItem Env: | Where-Object { $_.Name -eq $var })) {
-                    $missing += $var
-                }
-            }
-
-            if ($missing.Count -gt 0) {
-                Write-Host "❌ Missing required FMB environment variables: $($missing -join ', ')" -ForegroundColor Red
-                exit 1
-            }
-
-            Write-Host "✅ FMB environment validation passed" -ForegroundColor Green
-        }
-    } else {
-        Write-Host "☁️ Replit deployment detected - skipping FMB on-prem validation" -ForegroundColor Yellow
-
-        # Load environment variables from .env file for validation
-        if (Test-Path ".env") {
-            Write-Host "📋 Loading environment variables from .env file..." -ForegroundColor Yellow
-            Get-Content ".env" | ForEach-Object {
-                if ($_ -match "^([^#=]+)=(.*)$") {
-                    $name = $matches[1].Trim()
-                    $value = $matches[2].Trim()
-                    [Environment]::SetEnvironmentVariable($name, $value, "Process")
-                }
-            }
-        }
-
-        # Basic validation for environment
-        $basicVars = @('NODE_ENV')
-        $missing = @()
-        foreach ($var in $basicVars) {
-            if (-not (Get-ChildItem Env: | Where-Object { $_.Name -eq $var })) {
-                $missing += $var
-            }
-        }
-
-        if ($missing.Count -gt 0) {
-            Write-Host "❌ Missing basic environment variables: $($missing -join ', ')" -ForegroundColor Red
-            Write-Host "💡 Tip: Ensure .env file contains NODE_ENV=production" -ForegroundColor Yellow
-            exit 1
-        }
-
-        Write-Host "✅ Basic environment validation passed" -ForegroundColor Green
-    }
-
-    Write-Host "✅ Configuration validation completed" -ForegroundColor Green
-} catch {
-    Write-Host "❌ Configuration validation failed" -ForegroundColor Red
-    Write-Host "Please check your .env file and configuration" -ForegroundColor Yellow
-    exit 1
-}
-
-# Start application
-Write-Host "▶️ Starting application..." -ForegroundColor Yellow
-try {
-    # Check if PM2 is available
-    $pm2Version = npx pm2 --version 2>$null
-    if (-not $pm2Version) {
-        Write-Host "❌ PM2 is not available" -ForegroundColor Red
-        Write-Host "Installing PM2 globally..." -ForegroundColor Yellow
-        npm install -g pm2
-    }
-
-    # Stop any existing processes first
-    Write-Host "🛑 Stopping any existing processes..." -ForegroundColor Yellow
-    npx pm2 delete fmb-timetracker 2>$null
-
-    # Start the application with explicit production environment
-    Write-Host "🚀 Starting application with PM2..." -ForegroundColor Yellow
-    npx pm2 start ecosystem.config.cjs --env production --no-daemon
-
-    # Wait for the process to initialize
-    Start-Sleep -Seconds 5
-
-    # Check process status multiple times with retries
-    $maxRetries = 6
-    $retryCount = 0
-    $processOnline = $false
-
-    while ($retryCount -lt $maxRetries -and -not $processOnline) {
-        $retryCount++
-        Write-Host "🔍 Checking process status (attempt $retryCount/$maxRetries)..." -ForegroundColor Yellow
-
-        try {
-            $processStatus = npx pm2 jlist | ConvertFrom-Json
-            $appProcess = $processStatus | Where-Object { $_.name -eq "fmb-timetracker" }
-
-            if ($appProcess) {
-                $status = $appProcess.pm2_env.status
-                Write-Host "📊 Process status: $status" -ForegroundColor Cyan
-
-                if ($status -eq "online") {
-                    $processOnline = $true
-                    Write-Host "✅ Application started successfully" -ForegroundColor Green
-                } elseif ($status -eq "errored" -or $status -eq "stopped") {
-                    Write-Host "❌ Application process failed with status: $status" -ForegroundColor Red
-                    Write-Host "📝 Recent error logs:" -ForegroundColor Yellow
-                    npx pm2 logs fmb-timetracker --lines 20 --err
-                    exit 1
-                } else {
-                    Write-Host "⏳ Application still starting (status: $status)..." -ForegroundColor Yellow
-                    Start-Sleep -Seconds 5
-                }
-            } else {
-                Write-Host "❌ No process found with name 'fmb-timetracker'" -ForegroundColor Red
-                npx pm2 status
-                exit 1
-            }
-        } catch {
-            Write-Host "⚠️ Error checking process status: $($_.Exception.Message)" -ForegroundColor Yellow
-            Start-Sleep -Seconds 5
-        }
-    }
-
-    if (-not $processOnline) {
-        Write-Host "❌ Application failed to start within expected time" -ForegroundColor Red
-        Write-Host "📝 PM2 Status:" -ForegroundColor Yellow
-        npx pm2 status
-        Write-Host "📝 Recent logs:" -ForegroundColor Yellow
-        npx pm2 logs fmb-timetracker --lines 20
-        exit 1
-    }
-
-} catch {
-    Write-Host "❌ Failed to start application" -ForegroundColor Red
-    Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
-    Write-Host "📝 PM2 Status:" -ForegroundColor Yellow
-    npx pm2 status
-    Write-Host "📝 Recent logs:" -ForegroundColor Yellow
-    npx pm2 logs fmb-timetracker --lines 20
-    exit 1
-}
-
-# Wait for service to be ready
-Write-Host "⏳ Waiting for service to be ready..." -ForegroundColor Yellow
-Start-Sleep -Seconds 15
-
-# Verify deployment
-Write-Host "🔍 Verifying deployment..." -ForegroundColor Yellow
-try {
-    $response = Invoke-WebRequest -Uri "http://localhost:3000/api/health" -TimeoutSec 30
-    if ($response.StatusCode -eq 200) {
-        Write-Host "✅ Deployment successful!" -ForegroundColor Green
-        Write-Host "🌐 Application is running on port 3000" -ForegroundColor Green
-    } else {
-        Write-Host "❌ Health check failed - HTTP Status: $($response.StatusCode)" -ForegroundColor Red
-        exit 1
-    }
-} catch {
-    Write-Host "❌ Deployment verification failed" -ForegroundColor Red
-    Write-Host "📝 Check application logs: pm2 logs" -ForegroundColor Yellow
-    exit 1
-}
-
-Write-Host ""
-Write-Host "📋 Post-deployment commands:" -ForegroundColor Cyan
-Write-Host "View status: npx pm2 status" -ForegroundColor White
-Write-Host "View logs: npx pm2 logs" -ForegroundColor White
-Write-Host "Restart if needed: npx pm2 restart ecosystem.config.cjs" -ForegroundColor White
-🚀 FMB TimeTracker Deployment (Windows)
-======================================
-📁 Creating required directories...
-✅ Directories created
-🔍 Validating environment configuration...
-✅ Environment file found
-⏹️ Stopping application...
-[PM2] [fmb-timetracker](0) âœ“
-â”Œâ”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â
-”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”
-€â”€â”€â”€â”€â”€â”€â”
-â”‚ id â”‚ name               â”‚ namespace   â”‚ version â”‚ mode    â”‚ pid      â”‚ uptime â”‚ â†º    â”‚ status    â”‚ cpu      â”‚ mem      â”‚ user     â”‚ watching â”‚
-â”œâ”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â
-”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”
-€â”€â”€â”€â”€â”€â”€â”¤
-â”‚ 0  â”‚ fmb-timetracker    â”‚ default     â”‚ 1.0.0   â”‚ cluster â”‚ 0        â”‚ 0      â”‚ 0    â”‚ stopped   â”‚ 0%       â”‚ 0b       â”‚ ADM91381 â”‚ disabled â”‚
-â””â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â
-”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”
-€â”€â”€â”€â”€â”€â”€â”˜
-✅ Application stopped
-📦 Installing all dependencies...
-node.exe : npm warn ERESOLVE overriding peer dependency
-At line:1 char:1
-+ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
-+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (npm warn ERESOL...peer dependency:String) [], RemoteException
-    + FullyQualifiedErrorId : NativeCommandError
+(1 row affected)
+Msg 102, Level 15, State 1, Line 445
+Incorrect syntax near ')'.
+=== FMB TimeTracker Complete Database Setup Complete ===
  
-npm warn While resolving: vite@7.1.3
-npm warn Found: @types/node@20.16.11
-npm warn node_modules/@types/node
-npm warn   dev @types/node@"20.16.11" from the root project
-npm warn   14 more (@types/body-parser, @types/connect, ...)
-npm warn
-npm warn Could not resolve dependency:
-npm warn peerOptional @types/node@"^20.19.0 || >=22.12.0" from vite@7.1.3
-npm warn node_modules/vitest/node_modules/vite
-npm warn   vite@"^5.0.0 || ^6.0.0 || ^7.0.0-0" from vitest@3.2.4
-npm warn   node_modules/vitest
-npm warn   1 more (@vitest/mocker)
-npm warn
-npm warn Conflicting peer dependency: @types/node@24.3.0
-npm warn node_modules/@types/node
-npm warn   peerOptional @types/node@"^20.19.0 || >=22.12.0" from vite@7.1.3
-npm warn   node_modules/vitest/node_modules/vite
-npm warn     vite@"^5.0.0 || ^6.0.0 || ^7.0.0-0" from vitest@3.2.4
-npm warn     node_modules/vitest
-npm warn     1 more (@vitest/mocker)
+?? Sessions table structure:
 
-up to date, audited 835 packages in 4s
-
-113 packages are looking for funding
-  run `npm fund` for details
-
-10 vulnerabilities (1 low, 3 moderate, 5 high, 1 critical)
-
-To address issues that do not require attention, run:
-  npm audit fix
-
-To address all issues possible (including breaking changes), run:
-  npm audit fix --force
-
-Some issues need review, and may require choosing
-a different dependency.
-
-Run `npm audit` for details.
-✅ All dependencies installed
-🔨 Building application...
-
-> rest-express@1.0.0 build
-> vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
-
-[36mvite v5.4.19 [32mbuilding for production...[36m[39m
-transforming...
-[32mâœ“[39m 2080 modules transformed.
-rendering chunks...
-computing gzip size...
-[2m../dist/public/[22m[32mindex.html                 [39m[1m[2m  0.86 kB[22m[1m[22m[2m â”‚ gzip:   0.44 kB[22m
-[2m../dist/public/[22m[35massets/index-BUgT1Jg4.css  [39m[1m[2m 70.09 kB[22m[1m[22m[2m â”‚ gzip:  12.49 kB[22m
-[2m../dist/public/[22m[36massets/index-CkbLGBmI.js   [39m[1m[33m642.66 kB[39m[22m[2m â”‚ gzip: 181.08 kB[22m
-node.exe : [33m
-At line:1 char:1
-+ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
-+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: ([33m:String) [], RemoteException
-    + FullyQualifiedErrorId : NativeCommandError
+(3 rows affected)
  
-(!) Some chunks are larger than 500 kB after minification. Consider:
-- Using dynamic import() to code-split the application
-- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
-- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
-[32mâœ“ built in 7.64s[39m
-  dist\index.js  129.7kb
-Done in 26ms
-📋 Copying FMB configuration files...
-node_modules/tedious/lib/connection.d.ts(755,29): error TS2304: Cannot find name 'AggregateError'.
-node_modules/tedious/lib/errors.d.ts(4,59): error TS2304: Cannot find name 'ErrorOptions'.
-node_modules/tedious/lib/errors.d.ts(14,59): error TS2304: Cannot find name 'ErrorOptions'.
-fmb-onprem/config/fmb-database.ts(30,24): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
-fmb-onprem/config/fmb-database.ts(102,10): error TS2352: Conversion of type 'FmbStorage' to type 'IStorage' may be a mistake because neither type sufficiently overlaps with the other. If this was intention
-al, convert the expression to 'unknown' first.
-  Type 'FmbStorage' is missing the following properties from type 'IStorage': getUsers, getUserById, createUser, updateUser, and 8 more.
-fmb-onprem/storage/fmb-storage.ts(57,27): error TS2769: No overload matches this call.
-  Overload 1 of 2, '(config: config, callback?: (err?: any) => void): ConnectionPool', gave the following error.
-    Object literal may only specify known properties, and 'encrypt' does not exist in type 'config'.
-  Overload 2 of 2, '(connectionString: string, callback?: (err?: any) => void): ConnectionPool', gave the following error.
-    Argument of type '{ server: any; database: any; user: any; password: any; port: any; encrypt: boolean; trustServerCertificate: boolean; options: any; }' is not assignable to parameter of type 'string'.
-fmb-onprem/storage/fmb-storage.ts(137,18): error TS2551: Property 'firstName' does not exist on type 'UpsertUser'. Did you mean 'first_name'?
-fmb-onprem/storage/fmb-storage.ts(137,38): error TS2551: Property 'lastName' does not exist on type 'UpsertUser'. Did you mean 'last_name'?
-fmb-onprem/storage/fmb-storage.ts(137,57): error TS2551: Property 'profileImageUrl' does not exist on type 'UpsertUser'. Did you mean 'profile_image_url'?
-fmb-onprem/storage/fmb-storage.ts(138,33): error TS2551: Property 'organizationId' does not exist on type 'UpsertUser'. Did you mean 'organization_id'?
-fmb-onprem/storage/fmb-storage.ts(149,42): error TS2551: Property 'firstName' does not exist on type 'UpsertUser'. Did you mean 'first_name'?
-fmb-onprem/storage/fmb-storage.ts(149,62): error TS2551: Property 'lastName' does not exist on type 'UpsertUser'. Did you mean 'last_name'?
-fmb-onprem/storage/fmb-storage.ts(150,18): error TS2551: Property 'profileImageUrl' does not exist on type 'UpsertUser'. Did you mean 'profile_image_url'?
-fmb-onprem/storage/fmb-storage.ts(150,59): error TS2551: Property 'organizationId' does not exist on type 'UpsertUser'. Did you mean 'organization_id'?
-fmb-onprem/storage/fmb-storage.ts(157,9): error TS2416: Property 'getOrganizations' in type 'FmbStorage' is not assignable to the same property in base type 'IStorage'.
-  Type '(userId: string) => Promise<OrganizationWithDepartments[]>' is not assignable to type '() => Promise<Organization[]>'.
-    Target signature provides too few arguments. Expected 1 or more, but got 0.
-fmb-onprem/storage/fmb-storage.ts(176,59): error TS2551: Property 'userId' does not exist on type 'InsertOrganization'. Did you mean 'user_id'?
-fmb-onprem/storage/fmb-storage.ts(183,9): error TS2416: Property 'getProjects' in type 'FmbStorage' is not assignable to the same property in base type 'IStorage'.
-  Type '(userId: string) => Promise<Project[]>' is not assignable to type '() => Promise<Project[]>'.
-    Target signature provides too few arguments. Expected 1 or more, but got 0.
-fmb-onprem/storage/fmb-storage.ts(223,19): error TS2551: Property 'organizationId' does not exist on type 'InsertProject'. Did you mean 'organization_id'?
-fmb-onprem/storage/fmb-storage.ts(223,47): error TS2551: Property 'departmentId' does not exist on type 'InsertProject'. Did you mean 'department_id'?
-fmb-onprem/storage/fmb-storage.ts(223,73): error TS2551: Property 'managerId' does not exist on type 'InsertProject'. Did you mean 'manager_id'?
-fmb-onprem/storage/fmb-storage.ts(223,96): error TS2551: Property 'userId' does not exist on type 'InsertProject'. Did you mean 'user_id'?
-fmb-onprem/storage/fmb-storage.ts(224,19): error TS2551: Property 'startDate' does not exist on type 'InsertProject'. Did you mean 'start_date'?
-fmb-onprem/storage/fmb-storage.ts(224,42): error TS2551: Property 'endDate' does not exist on type 'InsertProject'. Did you mean 'end_date'?
-fmb-onprem/storage/fmb-storage.ts(224,83): error TS2551: Property 'projectNumber' does not exist on type 'InsertProject'. Did you mean 'project_number'?
-fmb-onprem/storage/fmb-storage.ts(225,19): error TS2551: Property 'isEnterpriseWide' does not exist on type 'InsertProject'. Did you mean 'is_enterprise_wide'?
-fmb-onprem/storage/fmb-storage.ts(225,58): error TS2551: Property 'isTemplate' does not exist on type 'InsertProject'. Did you mean 'is_template'?
-fmb-onprem/storage/fmb-storage.ts(226,19): error TS2551: Property 'allowTimeTracking' does not exist on type 'InsertProject'. Did you mean 'allow_time_tracking'?
-fmb-onprem/storage/fmb-storage.ts(226,60): error TS2551: Property 'requireTaskSelection' does not exist on type 'InsertProject'. Did you mean 'require_task_selection'?
-fmb-onprem/storage/fmb-storage.ts(227,19): error TS2551: Property 'enableBudgetTracking' does not exist on type 'InsertProject'. Did you mean 'enable_budget_tracking'?
-fmb-onprem/storage/fmb-storage.ts(227,62): error TS2551: Property 'enableBilling' does not exist on type 'InsertProject'. Did you mean 'enable_billing'?
-fmb-onprem/storage/fmb-storage.ts(263,9): error TS2416: Property 'deleteProject' in type 'FmbStorage' is not assignable to the same property in base type 'IStorage'.
-  Type '(id: string) => Promise<boolean>' is not assignable to type '(id: string) => Promise<void>'.
-    Type 'Promise<boolean>' is not assignable to type 'Promise<void>'.
-      Type 'boolean' is not assignable to type 'void'.
-fmb-onprem/storage/fmb-storage.ts(269,9): error TS2416: Property 'getTasks' in type 'FmbStorage' is not assignable to the same property in base type 'IStorage'.
-  Type '(userId: string) => Promise<TaskWithProject[]>' is not assignable to type '() => Promise<Task[]>'.
-    Target signature provides too few arguments. Expected 1 or more, but got 0.
-fmb-onprem/storage/fmb-storage.ts(298,24): error TS2551: Property 'projectId' does not exist on type 'InsertTask'. Did you mean 'project_id'?
-fmb-onprem/storage/fmb-storage.ts(299,77): error TS2551: Property 'assignedTo' does not exist on type 'InsertTask'. Did you mean 'assigned_to'?
-fmb-onprem/storage/fmb-storage.ts(300,16): error TS2551: Property 'createdBy' does not exist on type 'InsertTask'. Did you mean 'created_by'?
-fmb-onprem/storage/fmb-storage.ts(300,36): error TS2551: Property 'dueDate' does not exist on type 'InsertTask'. Did you mean 'due_date'?
-fmb-onprem/storage/fmb-storage.ts(300,54): error TS2551: Property 'estimatedHours' does not exist on type 'InsertTask'. Did you mean 'estimated_hours'?
-fmb-onprem/storage/fmb-storage.ts(335,9): error TS2416: Property 'deleteTask' in type 'FmbStorage' is not assignable to the same property in base type 'IStorage'.
-  Type '(id: string) => Promise<boolean>' is not assignable to type '(id: string) => Promise<void>'.
-    Type 'Promise<boolean>' is not assignable to type 'Promise<void>'.
-      Type 'boolean' is not assignable to type 'void'.
-fmb-onprem/storage/fmb-storage.ts(341,9): error TS2416: Property 'getTimeEntries' in type 'FmbStorage' is not assignable to the same property in base type 'IStorage'.
-  Type '(userId: string) => Promise<TimeEntryWithProject[]>' is not assignable to type '() => Promise<TimeEntry[]>'.
-    Target signature provides too few arguments. Expected 1 or more, but got 0.
-fmb-onprem/storage/fmb-storage.ts(379,30): error TS2551: Property 'userId' does not exist on type 'InsertTimeEntry'. Did you mean 'user_id'?
-fmb-onprem/storage/fmb-storage.ts(379,52): error TS2551: Property 'projectId' does not exist on type 'InsertTimeEntry'. Did you mean 'project_id'?
-fmb-onprem/storage/fmb-storage.ts(379,77): error TS2551: Property 'taskId' does not exist on type 'InsertTimeEntry'. Did you mean 'task_id'?
-fmb-onprem/storage/fmb-storage.ts(381,41): error TS2551: Property 'startTime' does not exist on type 'InsertTimeEntry'. Did you mean 'start_time'?
-fmb-onprem/storage/fmb-storage.ts(381,66): error TS2551: Property 'endTime' does not exist on type 'InsertTimeEntry'. Did you mean 'end_time'?
-fmb-onprem/storage/fmb-storage.ts(383,21): error TS2551: Property 'isBillable' does not exist on type 'InsertTimeEntry'. Did you mean 'is_billable'?
-fmb-onprem/storage/fmb-storage.ts(383,56): error TS2551: Property 'isApproved' does not exist on type 'InsertTimeEntry'. Did you mean 'is_approved'?
-fmb-onprem/storage/fmb-storage.ts(384,21): error TS2551: Property 'isManualEntry' does not exist on type 'InsertTimeEntry'. Did you mean 'is_manual_entry'?
-fmb-onprem/storage/fmb-storage.ts(384,60): error TS2551: Property 'isTimerEntry' does not exist on type 'InsertTimeEntry'. Did you mean 'is_timer_entry'?
-fmb-onprem/storage/fmb-storage.ts(385,21): error TS2551: Property 'isTemplate' does not exist on type 'InsertTimeEntry'. Did you mean 'is_template'?
-fmb-onprem/storage/fmb-storage.ts(420,9): error TS2416: Property 'deleteTimeEntry' in type 'FmbStorage' is not assignable to the same property in base type 'IStorage'.
-  Type '(id: string) => Promise<boolean>' is not assignable to type '(id: string) => Promise<void>'.
-    Type 'Promise<boolean>' is not assignable to type 'Promise<void>'.
-      Type 'boolean' is not assignable to type 'void'.
-fmb-onprem/storage/fmb-storage.ts(426,9): error TS2416: Property 'getEmployees' in type 'FmbStorage' is not assignable to the same property in base type 'IStorage'.
-  Type '(userId: string) => Promise<Employee[]>' is not assignable to type '() => Promise<Employee[]>'.
-    Target signature provides too few arguments. Expected 1 or more, but got 0.
-fmb-onprem/storage/fmb-storage.ts(442,27): error TS2551: Property 'employeeId' does not exist on type 'InsertEmployee'. Did you mean 'employee_id'?
-fmb-onprem/storage/fmb-storage.ts(442,52): error TS2551: Property 'firstName' does not exist on type 'InsertEmployee'. Did you mean 'first_name'?
-fmb-onprem/storage/fmb-storage.ts(443,20): error TS2551: Property 'lastName' does not exist on type 'InsertEmployee'. Did you mean 'last_name'?
-fmb-onprem/storage/fmb-storage.ts(443,68): error TS2551: Property 'userId' does not exist on type 'InsertEmployee'. Did you mean 'user_id'?
-fmb-onprem/storage/fmb-storage.ts(478,9): error TS2416: Property 'deleteEmployee' in type 'FmbStorage' is not assignable to the same property in base type 'IStorage'.
-  Type '(id: string) => Promise<boolean>' is not assignable to type '(id: string) => Promise<void>'.
-    Type 'Promise<boolean>' is not assignable to type 'Promise<void>'.
-      Type 'boolean' is not assignable to type 'void'.
-fmb-onprem/storage/fmb-storage.ts(484,9): error TS2416: Property 'getDepartments' in type 'FmbStorage' is not assignable to the same property in base type 'IStorage'.
-  Type '(userId: string) => Promise<DepartmentWithManager[]>' is not assignable to type '() => Promise<Department[]>'.
-    Target signature provides too few arguments. Expected 1 or more, but got 0.
-fmb-onprem/storage/fmb-storage.ts(505,39): error TS2551: Property 'organizationId' does not exist on type 'InsertDepartment'. Did you mean 'organization_id'?
-fmb-onprem/storage/fmb-storage.ts(505,64): error TS2551: Property 'managerId' does not exist on type 'InsertDepartment'. Did you mean 'manager_id'?
-fmb-onprem/storage/fmb-storage.ts(506,38): error TS2551: Property 'userId' does not exist on type 'InsertDepartment'. Did you mean 'user_id'?
-fmb-onprem/storage/fmb-storage.ts(541,9): error TS2416: Property 'deleteDepartment' in type 'FmbStorage' is not assignable to the same property in base type 'IStorage'.
-  Type '(id: string) => Promise<boolean>' is not assignable to type '(id: string) => Promise<void>'.
-    Type 'Promise<boolean>' is not assignable to type 'Promise<void>'.
-      Type 'boolean' is not assignable to type 'void'.
-node_modules/tedious/lib/connection.d.ts(755,29): error TS2304: Cannot find name 'AggregateError'.
-node_modules/tedious/lib/errors.d.ts(4,59): error TS2304: Cannot find name 'ErrorOptions'.
-node_modules/tedious/lib/errors.d.ts(14,59): error TS2304: Cannot find name 'ErrorOptions'.
-server/storage.ts(91,16): error TS2304: Cannot find name 'db'.
-server/storage.ts(92,20): error TS2304: Cannot find name 'db'.
-server/storage.ts(98,16): error TS2304: Cannot find name 'db'.
-server/storage.ts(99,20): error TS2304: Cannot find name 'db'.
-server/storage.ts(105,16): error TS2304: Cannot find name 'db'.
-server/storage.ts(106,20): error TS2304: Cannot find name 'db'.
-server/storage.ts(112,16): error TS2304: Cannot find name 'db'.
-server/storage.ts(113,20): error TS2304: Cannot find name 'db'.
-server/storage.ts(119,16): error TS2304: Cannot find name 'db'.
-server/storage.ts(120,20): error TS2304: Cannot find name 'db'.
-server/storage.ts(126,16): error TS2304: Cannot find name 'db'.
-server/storage.ts(127,13): error TS2304: Cannot find name 'db'.
-server/storage.ts(133,16): error TS2304: Cannot find name 'db'.
-server/storage.ts(134,20): error TS2304: Cannot find name 'db'.
-server/storage.ts(140,16): error TS2304: Cannot find name 'db'.
-server/storage.ts(141,20): error TS2304: Cannot find name 'db'.
-server/storage.ts(147,16): error TS2304: Cannot find name 'db'.
-server/storage.ts(148,20): error TS2304: Cannot find name 'db'.
-server/storage.ts(154,16): error TS2304: Cannot find name 'db'.
-server/storage.ts(155,20): error TS2304: Cannot find name 'db'.
-server/storage.ts(161,16): error TS2304: Cannot find name 'db'.
-server/storage.ts(162,13): error TS2304: Cannot find name 'db'.
-server/storage.ts(168,16): error TS2304: Cannot find name 'db'.
-server/storage.ts(169,20): error TS2304: Cannot find name 'db'.
-server/storage.ts(175,16): error TS2304: Cannot find name 'db'.
-server/storage.ts(176,20): error TS2304: Cannot find name 'db'.
-server/storage.ts(182,16): error TS2304: Cannot find name 'db'.
-server/storage.ts(183,20): error TS2304: Cannot find name 'db'.
-server/storage.ts(189,16): error TS2304: Cannot find name 'db'.
-server/storage.ts(190,20): error TS2304: Cannot find name 'db'.
-server/storage.ts(196,16): error TS2304: Cannot find name 'db'.
-server/storage.ts(197,20): error TS2304: Cannot find name 'db'.
-server/storage.ts(203,16): error TS2304: Cannot find name 'db'.
-server/storage.ts(204,13): error TS2304: Cannot find name 'db'.
-server/storage.ts(210,16): error TS2304: Cannot find name 'db'.
-server/storage.ts(211,20): error TS2304: Cannot find name 'db'.
-server/storage.ts(217,16): error TS2304: Cannot find name 'db'.
-server/storage.ts(218,20): error TS2304: Cannot find name 'db'.
-server/storage.ts(224,16): error TS2304: Cannot find name 'db'.
-server/storage.ts(225,20): error TS2304: Cannot find name 'db'.
-server/storage.ts(231,16): error TS2304: Cannot find name 'db'.
-server/storage.ts(232,20): error TS2304: Cannot find name 'db'.
-server/storage.ts(238,16): error TS2304: Cannot find name 'db'.
-server/storage.ts(239,20): error TS2304: Cannot find name 'db'.
-server/storage.ts(245,16): error TS2304: Cannot find name 'db'.
-server/storage.ts(246,20): error TS2304: Cannot find name 'db'.
-server/storage.ts(252,16): error TS2304: Cannot find name 'db'.
-server/storage.ts(253,13): error TS2304: Cannot find name 'db'.
-✅ Application built successfully
-📦 Keeping all dependencies for Vite compatibility...
-✅ Dependencies preserved for production build
-🔍 Running configuration health check...
-☁️ Replit deployment detected - skipping FMB on-prem validation
-📋 Loading environment variables from .env file...
-✅ Basic environment validation passed
-✅ Configuration validation completed
-▶️ Starting application...
-🛑 Stopping any existing processes...
-[PM2] Applying action deleteProcessId on app [fmb-timetracker](ids: [ 0 ])
-[PM2] [fmb-timetracker](0) âœ“
-â”Œâ”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â
-”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚ id â”‚ name      â”‚ namespace   â”‚ version â”‚ mode    â”‚ pid      â”‚ uptime â”‚ â†º    â”‚ status    â”‚ cpu      â”‚ mem      â”‚ user     â”‚ watching â”‚
-â””â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â
-”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
-🚀 Starting application with PM2...
-pm2 launched in no-daemon mode (you can add DEBUG="*" env variable to get more messages)
-[PM2][WARN] Applications fmb-timetracker not running, starting...
-[PM2][WARN] Environment [production] is not defined in process file
-[PM2] App [fmb-timetracker] launched (1 instances)
-â”Œâ”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â
-”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”
-€â”€â”€â”€â”€â”€â”€â”
-â”‚ id â”‚ name               â”‚ namespace   â”‚ version â”‚ mode    â”‚ pid      â”‚ uptime â”‚ â†º    â”‚ status    â”‚ cpu      â”‚ mem      â”‚ user     â”‚ watching â”‚
-â”œâ”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â
-”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”
-€â”€â”€â”€â”€â”€â”€â”¤
-â”‚ 0  â”‚ fmb-timetracker    â”‚ default     â”‚ 1.0.0   â”‚ cluster â”‚ 9952     â”‚ 0s     â”‚ 0    â”‚ online    â”‚ 0%       â”‚ 66.8mb   â”‚ ADM91381 â”‚ disabled â”‚
-â””â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â
-”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”
-€â”€â”€â”€â”€â”€â”€â”˜
-[--no-daemon] Continue to stream logs
-[--no-daemon] Exit on target PM2 exit pid=13964
-10:25:55 0|fmb-timetracker  | 2025-08-30T10:25:55: 2025-08-30T17:25:55.312Z ðŸŸ¢ [SERVER] Starting TimeTracker application...
-10:25:55 0|fmb-timetracker  | 2025-08-30T10:25:55: 2025-08-30T17:25:55.314Z ðŸŸ¢ [FMB-ONPREM] Production on-premises environment detected
-10:25:55 0|fmb-timetracker  | 2025-08-30T10:25:55: ðŸ”§ [DATABASE] Production on-premises mode: Attempting MS SQL Server connection...
-10:25:55 0|fmb-timetracker  | 2025-08-30T10:25:55: ðŸ”§ Initializing FMB on-premises MS SQL database...
-10:25:55 0|fmb-timetracker  | 2025-08-30T10:25:55: Database password: ********************
-10:25:55 0|fmb-timetracker  | 2025-08-30T10:25:55: ðŸ”— Attempting connection to HUB-SQL1TST-LIS:1433/timetracker
-10:25:55 0|fmb-timetracker  | 2025-08-30T10:25:55: 2025-08-30T17:25:55.316Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Connecting to HUB-SQL1TST-LIS:1433/timetracker
-10:25:55 0|fmb-timetracker  | 2025-08-30T10:25:55: 2025-08-30T17:25:55.509Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Successfully connected to MS SQL Server
-10:25:55 0|fmb-timetracker  | 2025-08-30T10:25:55: âœ… FMB MS SQL database connected successfully
-10:25:55 0|fmb-timetracker  | 2025-08-30T10:25:55: 2025-08-30T17:25:55.509Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Already connected to MS SQL Server
-10:25:55 0|fmb-timetracker  | 2025-08-30T10:25:55: âœ… [DATABASE] MS SQL Server initialized and connected successfully
-10:25:55 0|fmb-timetracker  | 2025-08-30T10:25:55: 2025-08-30T17:25:55.510Z ðŸŸ¢ [DATABASE] Database initialization completed successfully
-10:25:55 0|fmb-timetracker  | 2025-08-30T10:25:55: 2025-08-30T17:25:55.514Z ðŸŸ¢ [SESSION] Session configured for production mode
-10:25:55 0|fmb-timetracker  | 2025-08-30T10:25:55: Database password: ********************
-10:25:55 0|fmb-timetracker  | 2025-08-30T10:25:55: 2025-08-30T17:25:55.515Z ðŸŸ¢ [SESSION] Custom MS SQL session store initialized successfully
-10:25:55 0|fmb-timetracker  | 2025-08-30T10:25:55: 2025-08-30T17:25:55.516Z ðŸŸ¢ [SERVER] Session middleware configured successfully
-10:25:55 0|fmb-timetracker  | 2025-08-30T10:25:55: ðŸš€ Setting up FMB SAML Authentication for On-Premises production environment...
-10:25:55 0|fmb-timetracker  | 2025-08-30T10:25:55: 2025-08-30T17:25:55.521Z ðŸ”µ [FMB-SAML] Initializing FMB SAML Authentication...
-10:25:55 0|fmb-timetracker  | 2025-08-30T10:25:55: Database password: ********************
-10:25:55 0|fmb-timetracker  | 2025-08-30T10:25:55: 2025-08-30T17:25:55.522Z ðŸ”µ [FMB-SAML] Using existing session middleware for FMB SAML authentication
-10:25:55 0|fmb-timetracker  | 2025-08-30T10:25:55: 2025-08-30T17:25:55.523Z ðŸ”µ [FMB-SAML] FMB SAML Authentication configured successfully
-10:25:55 0|fmb-timetracker  | 2025-08-30T10:25:55: 2025-08-30T17:25:55.531Z ðŸŸ¢ [SERVER] Server running on http://0.0.0.0:3000
-10:25:55 0|fmb-timetracker  | 2025-08-30T10:25:55: 2025-08-30T17:25:55.531Z ðŸŸ¢ [SERVER] Environment: production
-10:25:55 0|fmb-timetracker  | 2025-08-30T10:25:55: 2025-08-30T17:25:55.531Z ðŸŸ¢ [FMB-ONPREM] On-premises deployment active
-10:25:55 0|fmb-timetracker  | 2025-08-30T10:25:55: âœ… Custom MS SQL session store initialized
-10:26:04 0|fmb-timetracker  | 2025-08-30T10:26:04: RequestError: Invalid column name 'session'.
-10:26:04 0|fmb-timetracker  |     at handleError (C:\fmb-timetracker\node_modules\mssql\lib\tedious\request.js:384:15)
-10:26:04 0|fmb-timetracker  |     at Connection.emit (node:events:518:28)
-10:26:04 0|fmb-timetracker  |     at Connection.emit (C:\fmb-timetracker\node_modules\tedious\lib\connection.js:970:18)
-10:26:04 0|fmb-timetracker  |     at RequestTokenHandler.onErrorMessage (C:\fmb-timetracker\node_modules\tedious\lib\token\handler.js:284:21)
-10:26:04 0|fmb-timetracker  |     at Readable.<anonymous> (C:\fmb-timetracker\node_modules\tedious\lib\token\token-stream-parser.js:19:33)
-10:26:04 0|fmb-timetracker  |     at Readable.emit (node:events:518:28)
-10:26:04 0|fmb-timetracker  |     at addChunk (node:internal/streams/readable:561:12)
-10:26:04 0|fmb-timetracker  |     at readableAddChunkPushObjectMode (node:internal/streams/readable:538:3)
-10:26:04 0|fmb-timetracker  |     at Readable.push (node:internal/streams/readable:393:5)
-10:26:04 0|fmb-timetracker  |     at nextAsync (node:internal/streams/from:194:22)
+?? Table record counts:
+
+(9 rows affected)
+ 
+? Database setup completed successfully!
+?? Session store setup completed
+?? Default admin user: admin@fmb.com (ID: admin-001)
+?? Database ready for TimeTracker application with session management
+Msg 207, Level 16, State 1, Procedure sp_CleanupExpiredSessions, Line 23 [Batch Start Line 493]
+Invalid column name 'expires'.
+Msg 207, Level 16, State 1, Procedure sp_GetSessionStats, Line 10 [Batch Start Line 535]
+Invalid column name 'expires'.
+Msg 207, Level 16, State 1, Procedure sp_GetSessionStats, Line 11 [Batch Start Line 535]
+Invalid column name 'expires'.
+Msg 207, Level 16, State 1, Procedure sp_GetSessionStats, Line 12 [Batch Start Line 535]
+Invalid column name 'created_at'.
+Msg 207, Level 16, State 1, Procedure sp_GetSessionStats, Line 12 [Batch Start Line 535]
+Invalid column name 'expires'.
+Msg 207, Level 16, State 1, Procedure sp_GetSessionStats, Line 12 [Batch Start Line 535]
+Invalid column name 'expires'.
+Msg 207, Level 16, State 1, Procedure sp_GetSessionStats, Line 13 [Batch Start Line 535]
+Invalid column name 'created_at'.
+Msg 207, Level 16, State 1, Procedure sp_GetSessionStats, Line 14 [Batch Start Line 535]
+Invalid column name 'expires'.
+Msg 229, Level 14, State 5, Line 568
+The SELECT permission was denied on the object 'sysjobs', database 'msdb', schema 'dbo'.
+Optimized session cleanup job already exists
+Msg 207, Level 16, State 1, Procedure v_SessionMonitoring, Line 8 [Batch Start Line 601]
+Invalid column name 'expires'.
+Msg 207, Level 16, State 1, Procedure v_SessionMonitoring, Line 9 [Batch Start Line 601]
+Invalid column name 'expires'.
+Msg 207, Level 16, State 1, Procedure v_SessionMonitoring, Line 12 [Batch Start Line 601]
+Invalid column name 'created_at'.
+Msg 207, Level 16, State 1, Procedure v_SessionMonitoring, Line 13 [Batch Start Line 601]
+Invalid column name 'expires'.
+Msg 207, Level 16, State 1, Procedure v_SessionMonitoring, Line 14 [Batch Start Line 601]
+Invalid column name 'created_at'.
+Msg 207, Level 16, State 1, Procedure v_SessionMonitoring, Line 14 [Batch Start Line 601]
+Invalid column name 'expires'.
+Msg 207, Level 16, State 1, Procedure v_SessionMonitoring, Line 14 [Batch Start Line 601]
+Invalid column name 'expires'.
+Msg 207, Level 16, State 1, Procedure v_SessionMonitoring, Line 15 [Batch Start Line 601]
+Invalid column name 'session'.
+Session maintenance procedures created successfully
+
+Completion time: 2025-08-30T10:34:49.5851933-07:00
