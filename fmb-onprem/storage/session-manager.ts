@@ -2,6 +2,73 @@
 import sql from 'mssql';
 import { loadFmbOnPremConfig } from '../config/fmb-env.js';
 
+export class OptimizedSessionManager {
+  private static instance: OptimizedSessionManager | null = null;
+  private sessionPool: sql.ConnectionPool | null = null;
+
+  private constructor() {}
+
+  static getInstance(): OptimizedSessionManager {
+    if (!OptimizedSessionManager.instance) {
+      OptimizedSessionManager.instance = new OptimizedSessionManager();
+    }
+    return OptimizedSessionManager.instance;
+  }
+
+  async initializeSessionPool(): Promise<sql.ConnectionPool> {
+    if (this.sessionPool && this.sessionPool.connected) {
+      return this.sessionPool;
+    }
+
+    const config = loadFmbOnPremConfig();
+    
+    this.sessionPool = new sql.ConnectionPool({
+      server: config.database.server,
+      database: config.database.database,
+      user: config.database.user,
+      password: config.database.password,
+      port: config.database.port,
+      options: {
+        encrypt: config.database.encrypt,
+        trustServerCertificate: config.database.trustServerCertificate,
+        enableArithAbort: true,
+        connectTimeout: 30000,
+        requestTimeout: 30000
+      },
+      pool: {
+        max: 5,
+        min: 1,
+        idleTimeoutMillis: 30000
+      }
+    });
+
+    await this.sessionPool.connect();
+    console.log('✅ Session pool initialized successfully');
+    return this.sessionPool;
+  }
+
+  async cleanupExpiredSessions(): Promise<void> {
+    if (!this.sessionPool || !this.sessionPool.connected) {
+      return;
+    }
+
+    try {
+      const request = this.sessionPool.request();
+      await request.query("DELETE FROM sessions WHERE expire < GETDATE()");
+      console.log('🧹 Expired sessions cleaned up');
+    } catch (error) {
+      console.error('❌ Failed to cleanup expired sessions:', error);
+    }
+  }
+
+  async disconnect(): Promise<void> {
+    if (this.sessionPool) {
+      await this.sessionPool.close();
+      this.sessionPool = null;
+    }
+  }
+}
+
 let sessionPool: sql.ConnectionPool | null = null;
 
 export class OptimizedSessionManager {
