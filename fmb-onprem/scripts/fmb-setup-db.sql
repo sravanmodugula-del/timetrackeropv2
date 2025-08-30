@@ -63,7 +63,8 @@ GO
 CREATE TABLE sessions (
     sid NVARCHAR(255) NOT NULL PRIMARY KEY,
     sess NVARCHAR(MAX) NOT NULL,  -- connect-mssql-v2 expects 'sess' column
-    expire DATETIME2(3) NOT NULL   -- connect-mssql-v2 expects 'expire' column
+    expire DATETIME2(3) NOT NULL,  -- connect-mssql-v2 expects 'expire' column
+    created_at DATETIME2(3) NOT NULL DEFAULT GETDATE()
 );
 
 -- Create optimized indexes for session operations
@@ -437,8 +438,8 @@ BEGIN
         COUNT(*) as total_sessions,
         COUNT(CASE WHEN expire > GETDATE() THEN 1 END) as active_sessions,
         COUNT(CASE WHEN expire <= GETDATE() THEN 1 END) as expired_sessions,
-        AVG(DATEDIFF(MINUTE, DATEADD(HOUR, -1, expire), expire)) as avg_session_duration_minutes,
-        MAX(DATEADD(HOUR, -1, expire)) as last_session_created,
+        AVG(DATEDIFF(MINUTE, created_at, expire)) as avg_session_duration_minutes,
+        MAX(created_at) as last_session_created,
         MIN(expire) as earliest_expiry
     FROM sessions;
     
@@ -467,47 +468,48 @@ SELECT
         WHEN expire <= GETDATE() THEN 'Expired'
         ELSE 'No Expiry Set'
     END as status,
-    DATEADD(HOUR, -1, expire) as created_at,
+    created_at,
     expire,
-    DATEDIFF(MINUTE, DATEADD(HOUR, -1, expire), expire) as duration_minutes,
+    DATEDIFF(MINUTE, created_at, expire) as duration_minutes,
     LEN(sess) as session_size_bytes
 FROM sessions;
 GO
 
--- Create automated cleanup job
-IF NOT EXISTS (SELECT * FROM msdb.dbo.sysjobs WHERE name = 'TimeTracker_OptimizedSessionCleanup')
-BEGIN
-    EXEC msdb.dbo.sp_add_job
-        @job_name = 'TimeTracker_OptimizedSessionCleanup',
-        @enabled = 1,
-        @description = 'Optimized cleanup of expired TimeTracker sessions using batched deletes';
-        
-    EXEC msdb.dbo.sp_add_jobstep
-        @job_name = 'TimeTracker_OptimizedSessionCleanup',
-        @step_name = 'Cleanup_Expired_Sessions_Batched',
-        @command = '
-DECLARE @DeletedCount INT;
-EXEC sp_CleanupExpiredSessions @BatchSize = 1000, @DeletedCount = @DeletedCount OUTPUT;
-PRINT CONCAT(''Session cleanup completed. Deleted: '', @DeletedCount, '' sessions'');
-        ';
-        
-    EXEC msdb.dbo.sp_add_schedule
-        @schedule_name = 'Every_3_Minutes_Optimized',
-        @freq_type = 4,
-        @freq_interval = 1,
-        @freq_subday_type = 4,
-        @freq_subday_interval = 3;
-        
-    EXEC msdb.dbo.sp_attach_schedule
-        @job_name = 'TimeTracker_OptimizedSessionCleanup',
-        @schedule_name = 'Every_3_Minutes_Optimized';
-        
-    PRINT 'Optimized session cleanup job created successfully';
-END
-ELSE
-BEGIN
-    PRINT 'Optimized session cleanup job already exists';
-END;
+-- Create automated cleanup job (with error handling for permissions)
+BEGIN TRY
+    IF NOT EXISTS (SELECT * FROM msdb.dbo.sysjobs WHERE name = 'TimeTracker_OptimizedSessionCleanup')
+    BEGIN
+        EXEC msdb.dbo.sp_add_job
+            @job_name = 'TimeTracker_OptimizedSessionCleanup',
+            @enabled = 1,
+            @description = 'Optimized cleanup of expired TimeTracker sessions using batched deletes';
+            
+        EXEC msdb.dbo.sp_add_jobstep
+            @job_name = 'TimeTracker_OptimizedSessionCleanup',
+            @step_name = 'Cleanup_Expired_Sessions_Batched',
+            @command = 'DECLARE @DeletedCount INT; EXEC sp_CleanupExpiredSessions @BatchSize = 1000, @DeletedCount = @DeletedCount OUTPUT; PRINT CONCAT(''Session cleanup completed. Deleted: '', @DeletedCount, '' sessions'');';
+            
+        EXEC msdb.dbo.sp_add_schedule
+            @schedule_name = 'Every_3_Minutes_Optimized',
+            @freq_type = 4,
+            @freq_interval = 1,
+            @freq_subday_type = 4,
+            @freq_subday_interval = 3;
+            
+        EXEC msdb.dbo.sp_attach_schedule
+            @job_name = 'TimeTracker_OptimizedSessionCleanup',
+            @schedule_name = 'Every_3_Minutes_Optimized';
+            
+        PRINT 'Optimized session cleanup job created successfully';
+    END
+    ELSE
+    BEGIN
+        PRINT 'Optimized session cleanup job already exists';
+    END
+END TRY
+BEGIN CATCH
+    PRINT 'Session cleanup job creation skipped (insufficient permissions)';
+END CATCH;
 GO
 
 -- Grant permissions to timetracker user for sessions table
