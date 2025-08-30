@@ -1,3 +1,4 @@
+
 -- =============================================================================
 -- FMB TimeTracker Database Setup for MS SQL Server
 -- Target: HUB-SQL1TST-LIS
@@ -22,6 +23,11 @@ IF OBJECT_ID('TR_departments_update', 'TR') IS NOT NULL DROP TRIGGER TR_departme
 IF OBJECT_ID('TR_projects_update', 'TR') IS NOT NULL DROP TRIGGER TR_projects_update;
 IF OBJECT_ID('TR_tasks_update', 'TR') IS NOT NULL DROP TRIGGER TR_tasks_update;
 IF OBJECT_ID('TR_timeentries_update', 'TR') IS NOT NULL DROP TRIGGER TR_timeentries_update;
+
+-- Drop procedures and views if they exist
+IF OBJECT_ID('sp_CleanupExpiredSessions', 'P') IS NOT NULL DROP PROCEDURE sp_CleanupExpiredSessions;
+IF OBJECT_ID('sp_GetSessionStats', 'P') IS NOT NULL DROP PROCEDURE sp_GetSessionStats;
+IF OBJECT_ID('v_SessionMonitoring', 'V') IS NOT NULL DROP VIEW v_SessionMonitoring;
 
 -- Drop all foreign key constraints first
 DECLARE @sql NVARCHAR(MAX) = '';
@@ -53,16 +59,17 @@ GO
 -- Core Tables (in dependency order)
 -- =============================================================================
 
--- Sessions table for express session store
+-- Sessions table for express session store (compatible with connect-mssql-v2)
 CREATE TABLE sessions (
     sid NVARCHAR(255) NOT NULL PRIMARY KEY,
-    sess NTEXT NOT NULL,
-    expire DATETIME2 NOT NULL
+    sess NVARCHAR(MAX) NOT NULL,  -- connect-mssql-v2 expects 'sess' column
+    expire DATETIME2(3) NOT NULL   -- connect-mssql-v2 expects 'expire' column
 );
 
--- Create index on expire for cleanup operations
-CREATE INDEX IX_sessions_expire ON sessions(expire);
-PRINT '✅ Sessions table created successfully';
+-- Create optimized indexes for session operations
+CREATE INDEX IDX_sessions_expire ON sessions(expire);
+CREATE INDEX IDX_sessions_sid_expire ON sessions(sid, expire);
+PRINT '✅ Sessions table created with connect-mssql-v2 compatibility';
 
 -- Users (base table with no dependencies)
 CREATE TABLE users (
@@ -381,6 +388,133 @@ END;
 GO
 
 -- =============================================================================
+-- Session Maintenance Procedures for Optimized Performance
+-- =============================================================================
+
+-- Stored procedure for efficient session cleanup
+CREATE OR ALTER PROCEDURE sp_CleanupExpiredSessions
+    @BatchSize INT = 1000,
+    @DeletedCount INT OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @TotalDeleted INT = 0;
+    DECLARE @RowsDeleted INT = 1;
+    
+    -- Delete in batches to avoid blocking
+    WHILE @RowsDeleted > 0
+    BEGIN
+        DELETE TOP (@BatchSize) FROM sessions 
+        WHERE expire < GETDATE();
+        
+        SET @RowsDeleted = @@ROWCOUNT;
+        SET @TotalDeleted = @TotalDeleted + @RowsDeleted;
+        
+        -- Brief pause between batches to reduce blocking
+        IF @RowsDeleted > 0
+            WAITFOR DELAY '00:00:00.100'; -- 100ms delay
+    END
+    
+    SET @DeletedCount = @TotalDeleted;
+    
+    -- Update statistics after cleanup
+    IF @TotalDeleted > 0
+    BEGIN
+        UPDATE STATISTICS sessions;
+        PRINT CONCAT('Cleaned up ', @TotalDeleted, ' expired sessions');
+    END
+END;
+GO
+
+-- Stored procedure for session statistics
+CREATE OR ALTER PROCEDURE sp_GetSessionStats
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT 
+        COUNT(*) as total_sessions,
+        COUNT(CASE WHEN expire > GETDATE() THEN 1 END) as active_sessions,
+        COUNT(CASE WHEN expire <= GETDATE() THEN 1 END) as expired_sessions,
+        AVG(DATEDIFF(MINUTE, DATEADD(HOUR, -1, expire), expire)) as avg_session_duration_minutes,
+        MAX(DATEADD(HOUR, -1, expire)) as last_session_created,
+        MIN(expire) as earliest_expiry
+    FROM sessions;
+    
+    -- Show index usage statistics
+    SELECT 
+        i.name as index_name,
+        s.user_seeks,
+        s.user_scans,
+        s.user_lookups,
+        s.user_updates
+    FROM sys.dm_db_index_usage_stats s
+    INNER JOIN sys.indexes i ON s.object_id = i.object_id AND s.index_id = i.index_id
+    INNER JOIN sys.objects o ON i.object_id = o.object_id
+    WHERE o.name = 'sessions'
+    ORDER BY s.user_seeks + s.user_scans + s.user_lookups DESC;
+END;
+GO
+
+-- Create session monitoring view
+CREATE OR ALTER VIEW v_SessionMonitoring
+AS
+SELECT 
+    sid,
+    CASE 
+        WHEN expire > GETDATE() THEN 'Active'
+        WHEN expire <= GETDATE() THEN 'Expired'
+        ELSE 'No Expiry Set'
+    END as status,
+    DATEADD(HOUR, -1, expire) as created_at,
+    expire,
+    DATEDIFF(MINUTE, DATEADD(HOUR, -1, expire), expire) as duration_minutes,
+    LEN(sess) as session_size_bytes
+FROM sessions;
+GO
+
+-- Create automated cleanup job
+IF NOT EXISTS (SELECT * FROM msdb.dbo.sysjobs WHERE name = 'TimeTracker_OptimizedSessionCleanup')
+BEGIN
+    EXEC msdb.dbo.sp_add_job
+        @job_name = 'TimeTracker_OptimizedSessionCleanup',
+        @enabled = 1,
+        @description = 'Optimized cleanup of expired TimeTracker sessions using batched deletes';
+        
+    EXEC msdb.dbo.sp_add_jobstep
+        @job_name = 'TimeTracker_OptimizedSessionCleanup',
+        @step_name = 'Cleanup_Expired_Sessions_Batched',
+        @command = '
+DECLARE @DeletedCount INT;
+EXEC sp_CleanupExpiredSessions @BatchSize = 1000, @DeletedCount = @DeletedCount OUTPUT;
+PRINT CONCAT(''Session cleanup completed. Deleted: '', @DeletedCount, '' sessions'');
+        ';
+        
+    EXEC msdb.dbo.sp_add_schedule
+        @schedule_name = 'Every_3_Minutes_Optimized',
+        @freq_type = 4,
+        @freq_interval = 1,
+        @freq_subday_type = 4,
+        @freq_subday_interval = 3;
+        
+    EXEC msdb.dbo.sp_attach_schedule
+        @job_name = 'TimeTracker_OptimizedSessionCleanup',
+        @schedule_name = 'Every_3_Minutes_Optimized';
+        
+    PRINT 'Optimized session cleanup job created successfully';
+END
+ELSE
+BEGIN
+    PRINT 'Optimized session cleanup job already exists';
+END;
+GO
+
+-- Grant permissions to timetracker user for sessions table
+GRANT SELECT, INSERT, UPDATE, DELETE ON sessions TO timetracker;
+GO
+
+-- =============================================================================
 -- Sample Data
 -- =============================================================================
 
@@ -406,49 +540,19 @@ VALUES ('dept-it', 'Information Technology', 'IT Department', 'org-fmb', 'emp-ad
 -- Sample project
 INSERT INTO projects (id, name, description, status, organization_id, department_id, manager_id, user_id, allow_time_tracking)
 VALUES ('proj-sample', 'TimeTracker Setup', 'Initial system setup and testing', 'active', 'org-fmb', 'dept-it', 'admin-001', 'admin-001', 1);
-GO
 
--- =============================================================================
--- Insert sample time entries
--- =============================================================================
+-- Sample tasks
+INSERT INTO tasks (id, project_id, title, description, status, assigned_to, created_by)
+VALUES 
+('task-001', 'proj-sample', 'Initial Setup', 'Set up development environment', 'completed', 'admin-001', 'admin-001'),
+('task-002', 'proj-sample', 'Database Configuration', 'Configure MS SQL database', 'completed', 'admin-001', 'admin-001');
+
+-- Sample time entries
 INSERT INTO time_entries (id, user_id, project_id, task_id, description, hours, duration, date, start_time, end_time, is_billable, created_at, updated_at)
 VALUES 
 ('te-001', 'admin-001', 'proj-sample', 'task-001', 'Morning development work', 1.5, 1.5, '2024-01-15', '2024-01-15 09:00:00', '2024-01-15 10:30:00', 1, GETDATE(), GETDATE()),
 ('te-002', 'admin-001', 'proj-sample', 'task-002', 'Testing and debugging', 1.25, 1.25, '2024-01-15', '2024-01-15 10:45:00', '2024-01-15 12:00:00', 1, GETDATE(), GETDATE()),
 ('te-003', 'admin-001', 'proj-sample', 'task-001', 'System configuration', 2.5, 2.5, '2024-01-15', '2024-01-15 14:00:00', '2024-01-15 16:30:00', 1, GETDATE(), GETDATE());
-
-PRINT 'Sample time entries inserted successfully';
-
--- =============================================================================
--- Create optimized sessions table for MS SQL session store
--- =============================================================================
-IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='sessions' AND xtype='U')
-BEGIN
-    CREATE TABLE sessions (
-        sid NVARCHAR(255) NOT NULL PRIMARY KEY,
-        session NVARCHAR(MAX) NOT NULL, -- Use NVARCHAR(MAX) instead of NTEXT for better performance
-        expires DATETIME2(3) NULL, -- Use DATETIME2 for better precision and performance
-        created_at DATETIME2(3) NOT NULL DEFAULT GETDATE(),
-        last_accessed DATETIME2(3) NULL
-    );
-
-    -- Optimized indexes for session operations
-    CREATE INDEX IX_sessions_expires ON sessions(expires) WHERE expires IS NOT NULL;
-    CREATE INDEX IX_sessions_last_accessed ON sessions(last_accessed) WHERE last_accessed IS NOT NULL;
-    CREATE INDEX IX_sessions_created_expires ON sessions(created_at, expires);
-    
-    -- Add constraint to ensure expires is in the future
-    ALTER TABLE sessions ADD CONSTRAINT CK_sessions_expires_future 
-        CHECK (expires IS NULL OR expires > created_at);
-    
-    PRINT 'Optimized sessions table created with performance indexes';);
-
-    PRINT 'Sessions table created successfully';
-END
-ELSE
-BEGIN
-    PRINT 'Sessions table already exists';
-END;
 GO
 
 -- =============================================================================
@@ -486,7 +590,8 @@ UNION ALL SELECT 'sessions', COUNT(*) FROM sessions;
 
 PRINT '';
 PRINT '✅ Database setup completed successfully!';
-PRINT '🔧 Session store setup completed';
+PRINT '🔧 Session store setup completed with connect-mssql-v2 compatibility';
 PRINT '📋 Default admin user: admin@fmb.com (ID: admin-001)';
 PRINT '🌐 Database ready for TimeTracker application with session management';
+PRINT '🧹 Session maintenance procedures and cleanup job configured';
 GO
