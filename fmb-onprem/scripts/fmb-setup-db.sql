@@ -2,6 +2,10 @@
 -- =============================================================================
 -- FMB TimeTracker Database Setup for MS SQL Server
 -- Target: HUB-SQL1TST-LIS
+-- Database: timetracker
+-- 
+-- This is the single, complete setup file for the FMB TimeTracker database.
+-- It includes all tables, indexes, constraints, triggers, sessions, and sample data.
 -- =============================================================================
 
 USE timetracker;
@@ -43,11 +47,23 @@ IF OBJECT_ID('departments', 'U') IS NOT NULL DROP TABLE departments;
 IF OBJECT_ID('employees', 'U') IS NOT NULL DROP TABLE employees;
 IF OBJECT_ID('organizations', 'U') IS NOT NULL DROP TABLE organizations;
 IF OBJECT_ID('users', 'U') IS NOT NULL DROP TABLE users;
+IF OBJECT_ID('sessions', 'U') IS NOT NULL DROP TABLE sessions;
 GO
 
 -- =============================================================================
 -- Core Tables (in dependency order)
 -- =============================================================================
+
+-- Sessions table for express session store
+CREATE TABLE sessions (
+    sid NVARCHAR(255) NOT NULL PRIMARY KEY,
+    sess NTEXT NOT NULL,
+    expire DATETIME2 NOT NULL
+);
+
+-- Create index on expire for cleanup operations
+CREATE INDEX IX_sessions_expire ON sessions(expire);
+PRINT '✅ Sessions table created successfully';
 
 -- Users (base table with no dependencies)
 CREATE TABLE users (
@@ -394,11 +410,25 @@ VALUES ('proj-sample', 'TimeTracker Setup', 'Initial system setup and testing', 
 GO
 
 -- =============================================================================
--- Validation
+-- Validation and Summary
 -- =============================================================================
 
-PRINT '=== FMB TimeTracker Database Setup Complete ===';
+PRINT '=== FMB TimeTracker Complete Database Setup Complete ===';
 PRINT '';
+
+-- Verify sessions table structure
+PRINT '📋 Sessions table structure:';
+SELECT 
+    COLUMN_NAME,
+    DATA_TYPE,
+    IS_NULLABLE,
+    CHARACTER_MAXIMUM_LENGTH
+FROM INFORMATION_SCHEMA.COLUMNS 
+WHERE TABLE_NAME = 'sessions'
+ORDER BY ORDINAL_POSITION;
+
+PRINT '';
+PRINT '📊 Table record counts:';
 
 -- Table counts
 SELECT 
@@ -409,9 +439,12 @@ UNION ALL SELECT 'departments', COUNT(*) FROM departments
 UNION ALL SELECT 'projects', COUNT(*) FROM projects
 UNION ALL SELECT 'tasks', COUNT(*) FROM tasks
 UNION ALL SELECT 'project_employees', COUNT(*) FROM project_employees
-UNION ALL SELECT 'time_entries', COUNT(*) FROM time_entries;
+UNION ALL SELECT 'time_entries', COUNT(*) FROM time_entries
+UNION ALL SELECT 'sessions', COUNT(*) FROM sessions;
 
 PRINT '';
-PRINT 'Database ready for TimeTracker application!';
-PRINT 'Default admin user: admin@fmb.com (ID: admin-001)';
+PRINT '✅ Database setup completed successfully!';
+PRINT '🔧 Session store setup completed';
+PRINT '📋 Default admin user: admin@fmb.com (ID: admin-001)';
+PRINT '🌐 Database ready for TimeTracker application with session management';
 GO
