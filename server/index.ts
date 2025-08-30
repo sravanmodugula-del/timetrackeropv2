@@ -83,7 +83,7 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 // Session configuration
-function getSession() {
+async function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 7 days
   const isProduction = process.env.NODE_ENV === 'production';
 
@@ -100,22 +100,68 @@ function getSession() {
 
   enhancedLog('INFO', 'SESSION', `Session configured for ${isProduction ? 'production' : 'development'} mode`);
 
-  // Use MS SQL Server session store for production
+  // Use MS SQL Server session store for FMB on-premises production
   if (isProduction && isFmbOnPremEnvironment()) {
-    // For FMB on-premises, use memory store for now
-    // In production you might want to implement a custom MS SQL session store
-    return session({
-      secret: sessionSecret,
-      resave: false,
-      saveUninitialized: false,
-      cookie: {
-        httpOnly: true,
-        secure: true,
-        maxAge: sessionTtl,
-        sameSite: 'lax'
-      },
-      name: 'timetracker.sid'
-    });
+    try {
+      // Import MS SQL session store
+      const { default: connectMSSQL } = await import('connect-mssql-v2');
+      const { loadFmbOnPremConfig } = await import('../fmb-onprem/config/fmb-env.js');
+      
+      const config = loadFmbOnPremConfig();
+      const MSSQLStore = connectMSSQL(session);
+      
+      const sessionStore = new MSSQLStore({
+        config: {
+          server: config.database.server,
+          database: config.database.database,
+          user: config.database.user,
+          password: config.database.password,
+          port: parseInt(config.database.port),
+          options: {
+            enableArithAbort: true,
+            encrypt: config.database.encrypt,
+            trustServerCertificate: config.database.trustServerCertificate,
+          }
+        },
+        table: 'sessions',
+        ttl: sessionTtl,
+        autoRemove: 'interval',
+        autoRemoveInterval: 10 // minutes
+      });
+
+      enhancedLog('INFO', 'SESSION', 'Using MS SQL Server session store for production');
+      
+      return session({
+        secret: sessionSecret,
+        store: sessionStore,
+        resave: false,
+        saveUninitialized: false,
+        rolling: true,
+        cookie: {
+          httpOnly: true,
+          secure: false, // Set to false for on-premises without HTTPS
+          maxAge: sessionTtl,
+          sameSite: 'lax'
+        },
+        name: 'timetracker.sid'
+      });
+    } catch (error) {
+      enhancedLog('WARN', 'SESSION', 'Failed to initialize MS SQL session store, falling back to memory store:', error?.message);
+      // Fallback to memory store but with better configuration
+      return session({
+        secret: sessionSecret,
+        resave: false,
+        saveUninitialized: false,
+        rolling: true,
+        cookie: {
+          httpOnly: true,
+          secure: false,
+          maxAge: sessionTtl,
+          sameSite: 'lax'
+        },
+        name: 'timetracker.sid'
+      });
+    }
   } else {
     // Development configuration - memory store
     return session({
@@ -185,7 +231,8 @@ async function createServer() {
 
   // Session middleware with error handling
   try {
-    app.use(getSession());
+    const sessionMiddleware = await getSession();
+    app.use(sessionMiddleware);
     enhancedLog('INFO', 'SERVER', 'Session middleware configured successfully');
   } catch (error) {
     enhancedLog('ERROR', 'SERVER', 'Failed to configure session middleware:', {
