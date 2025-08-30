@@ -1,15 +1,171 @@
-[TAILING] Tailing last 20 lines for [fmb-timetracker] process (change the value with --lines option)
-C:\fmb-timetracker\logs\out.log last 20 lines:
-C:\fmb-timetracker\logs\error.log last 20 lines:
-15|fmb-tim | You have triggered an unhandledRejection, you may have forgotten to catch a Promise rejection:
-15|fmb-tim | Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'helmet' imported from C:\fmb-timetracker\dist\index.js
-15|fmb-tim |     at Object.getPackageJSONURL (node:internal/modules/package_json_reader:255:9)
-15|fmb-tim |     at packageResolve (node:internal/modules/esm/resolve:767:81)
-15|fmb-tim |     at moduleResolve (node:internal/modules/esm/resolve:853:18)
-15|fmb-tim |     at defaultResolve (node:internal/modules/esm/resolve:983:11)
-15|fmb-tim |     at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:783:12)
-15|fmb-tim |     at #cachedDefaultResolve (node:internal/modules/esm/loader:707:25)
-15|fmb-tim |     at ModuleLoader.resolve (node:internal/modules/esm/loader:690:38)
-15|fmb-tim |     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:307:38)
-15|fmb-tim |     at ModuleJob._link (node:internal/modules/esm/module_job:183:49)
-15|fmb-tim |     at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[--no-daemon] Continue to stream logs
+[--no-daemon] Exit on target PM2 exit pid=13964
+07:56:54 0|fmb-timetracker  | 2025-08-30T07:56:54: 2025-08-30T14:56:54.738Z ðŸŸ¢ [SERVER] Starting TimeTracker application...
+07:56:54 0|fmb-timetracker  | 2025-08-30T07:56:54: 2025-08-30T14:56:54.740Z ðŸŸ¢ [FMB-ONPREM] Production on-premises environment detected
+07:56:54 0|fmb-timetracker  | 2025-08-30T07:56:54: ðŸ”§ [DATABASE] Production on-premises mode: Attempting MS SQL Server connection...
+07:56:54 0|fmb-timetracker  | 2025-08-30T07:56:54: ðŸ”§ Initializing FMB on-premises MS SQL database...
+07:56:54 0|fmb-timetracker  | 2025-08-30T07:56:54: Database password: ********************
+07:56:54 0|fmb-timetracker  | 2025-08-30T07:56:54: ðŸ”— Attempting connection to HUB-SQL1TST-LIS:1433/timetracker
+07:56:54 0|fmb-timetracker  | 2025-08-30T07:56:54: 2025-08-30T14:56:54.742Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Connecting to HUB-SQL1TST-LIS:1433/timetracker
+07:56:54 0|fmb-timetracker  | 2025-08-30T07:56:54: 2025-08-30T14:56:54.932Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Successfully connected to MS SQL Server
+07:56:54 0|fmb-timetracker  | 2025-08-30T07:56:54: âœ… FMB MS SQL database connected successfully
+07:56:54 0|fmb-timetracker  | 2025-08-30T07:56:54: 2025-08-30T14:56:54.932Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Already connected to MS SQL Server
+07:56:54 0|fmb-timetracker  | 2025-08-30T07:56:54: âœ… [DATABASE] MS SQL Server initialized and connected successfully
+07:56:54 0|fmb-timetracker  | 2025-08-30T07:56:54: 2025-08-30T14:56:54.933Z ðŸŸ¢ [DATABASE] Database initialization completed successfully
+07:56:54 0|fmb-timetracker  | 2025-08-30T07:56:54: 2025-08-30T14:56:54.936Z ðŸ”´ [SERVER] Failed to start server: {}
+07:56:54 PM2                | App name:fmb-timetracker id:0 disconnected
+07:56:54 PM2                | App [fmb-timetracker:0] exited with code [1] via signal [SIGINT]
+07:56:59 PM2                | App [fmb-timetracker:0] starting in -cluster mode-
+07:57:00 PM2                | App [fmb-timetracker:0] online
+07:57:01 0|fmb-timetracker  | 2025-08-30T07:57:01: 2025-08-30T14:57:01.616Z ðŸŸ¢ [SERVER] Starting TimeTracker application...
+07:57:01 0|fmb-timetracker  | 2025-08-30T07:57:01: 2025-08-30T14:57:01.618Z ðŸŸ¢ [FMB-ONPREM] Production on-premises environment detected
+07:57:01 0|fmb-timetracker  | 2025-08-30T07:57:01: ðŸ”§ [DATABASE] Production on-premises mode: Attempting MS SQL Server connection...
+07:57:01 0|fmb-timetracker  | 2025-08-30T07:57:01: ðŸ”§ Initializing FMB on-premises MS SQL database...
+07:57:01 0|fmb-timetracker  | 2025-08-30T07:57:01: Database password: ********************
+07:57:01 0|fmb-timetracker  | 2025-08-30T07:57:01: ðŸ”— Attempting connection to HUB-SQL1TST-LIS:1433/timetracker
+07:57:01 0|fmb-timetracker  | 2025-08-30T07:57:01: 2025-08-30T14:57:01.620Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Connecting to HUB-SQL1TST-LIS:1433/timetracker
+07:57:01 0|fmb-timetracker  | 2025-08-30T07:57:01: 2025-08-30T14:57:01.797Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Successfully connected to MS SQL Server
+07:57:01 0|fmb-timetracker  | 2025-08-30T07:57:01: âœ… FMB MS SQL database connected successfully
+07:57:01 0|fmb-timetracker  | 2025-08-30T07:57:01: 2025-08-30T14:57:01.798Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Already connected to MS SQL Server
+07:57:01 0|fmb-timetracker  | 2025-08-30T07:57:01: âœ… [DATABASE] MS SQL Server initialized and connected successfully
+07:57:01 0|fmb-timetracker  | 2025-08-30T07:57:01: 2025-08-30T14:57:01.799Z ðŸŸ¢ [DATABASE] Database initialization completed successfully
+07:57:01 0|fmb-timetracker  | 2025-08-30T07:57:01: 2025-08-30T14:57:01.803Z ðŸ”´ [SERVER] Failed to start server: {}
+07:57:01 PM2                | App name:fmb-timetracker id:0 disconnected
+07:57:01 PM2                | App [fmb-timetracker:0] exited with code [1] via signal [SIGINT]
+07:57:06 PM2                | App [fmb-timetracker:0] starting in -cluster mode-
+07:57:06 PM2                | App [fmb-timetracker:0] online
+07:57:08 0|fmb-timetracker  | 2025-08-30T07:57:08: 2025-08-30T14:57:08.376Z ðŸŸ¢ [SERVER] Starting TimeTracker application...
+07:57:08 0|fmb-timetracker  | 2025-08-30T07:57:08: 2025-08-30T14:57:08.378Z ðŸŸ¢ [FMB-ONPREM] Production on-premises environment detected
+07:57:08 0|fmb-timetracker  | 2025-08-30T07:57:08: ðŸ”§ [DATABASE] Production on-premises mode: Attempting MS SQL Server connection...
+07:57:08 0|fmb-timetracker  | 2025-08-30T07:57:08: ðŸ”§ Initializing FMB on-premises MS SQL database...
+07:57:08 0|fmb-timetracker  | 2025-08-30T07:57:08: Database password: ********************
+07:57:08 0|fmb-timetracker  | 2025-08-30T07:57:08: ðŸ”— Attempting connection to HUB-SQL1TST-LIS:1433/timetracker
+07:57:08 0|fmb-timetracker  | 2025-08-30T07:57:08: 2025-08-30T14:57:08.380Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Connecting to HUB-SQL1TST-LIS:1433/timetracker
+07:57:08 0|fmb-timetracker  | 2025-08-30T07:57:08: 2025-08-30T14:57:08.567Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Successfully connected to MS SQL Server
+07:57:08 0|fmb-timetracker  | 2025-08-30T07:57:08: âœ… FMB MS SQL database connected successfully
+07:57:08 0|fmb-timetracker  | 2025-08-30T07:57:08: 2025-08-30T14:57:08.569Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Already connected to MS SQL Server
+07:57:08 0|fmb-timetracker  | 2025-08-30T07:57:08: âœ… [DATABASE] MS SQL Server initialized and connected successfully
+07:57:08 0|fmb-timetracker  | 2025-08-30T07:57:08: 2025-08-30T14:57:08.569Z ðŸŸ¢ [DATABASE] Database initialization completed successfully
+07:57:08 0|fmb-timetracker  | 2025-08-30T07:57:08: 2025-08-30T14:57:08.574Z ðŸ”´ [SERVER] Failed to start server: {}
+07:57:08 PM2                | App name:fmb-timetracker id:0 disconnected
+07:57:08 PM2                | App [fmb-timetracker:0] exited with code [1] via signal [SIGINT]
+07:57:13 PM2                | App [fmb-timetracker:0] starting in -cluster mode-
+07:57:13 PM2                | App [fmb-timetracker:0] online
+07:57:15 0|fmb-timetracker  | 2025-08-30T07:57:15: 2025-08-30T14:57:15.119Z ðŸŸ¢ [SERVER] Starting TimeTracker application...
+07:57:15 0|fmb-timetracker  | 2025-08-30T07:57:15: 2025-08-30T14:57:15.120Z ðŸŸ¢ [FMB-ONPREM] Production on-premises environment detected
+07:57:15 0|fmb-timetracker  | 2025-08-30T07:57:15: ðŸ”§ [DATABASE] Production on-premises mode: Attempting MS SQL Server connection...
+07:57:15 0|fmb-timetracker  | 2025-08-30T07:57:15: ðŸ”§ Initializing FMB on-premises MS SQL database...
+07:57:15 0|fmb-timetracker  | 2025-08-30T07:57:15: Database password: ********************
+07:57:15 0|fmb-timetracker  | 2025-08-30T07:57:15: ðŸ”— Attempting connection to HUB-SQL1TST-LIS:1433/timetracker
+07:57:15 0|fmb-timetracker  | 2025-08-30T07:57:15: 2025-08-30T14:57:15.122Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Connecting to HUB-SQL1TST-LIS:1433/timetracker
+07:57:15 0|fmb-timetracker  | 2025-08-30T07:57:15: 2025-08-30T14:57:15.298Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Successfully connected to MS SQL Server
+07:57:15 0|fmb-timetracker  | 2025-08-30T07:57:15: âœ… FMB MS SQL database connected successfully
+07:57:15 0|fmb-timetracker  | 2025-08-30T07:57:15: 2025-08-30T14:57:15.299Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Already connected to MS SQL Server
+07:57:15 0|fmb-timetracker  | 2025-08-30T07:57:15: âœ… [DATABASE] MS SQL Server initialized and connected successfully
+07:57:15 0|fmb-timetracker  | 2025-08-30T07:57:15: 2025-08-30T14:57:15.299Z ðŸŸ¢ [DATABASE] Database initialization completed successfully
+07:57:15 0|fmb-timetracker  | 2025-08-30T07:57:15: 2025-08-30T14:57:15.304Z ðŸ”´ [SERVER] Failed to start server: {}
+07:57:15 PM2                | App name:fmb-timetracker id:0 disconnected
+07:57:15 PM2                | App [fmb-timetracker:0] exited with code [1] via signal [SIGINT]
+07:57:20 PM2                | App [fmb-timetracker:0] starting in -cluster mode-
+07:57:20 PM2                | App [fmb-timetracker:0] online
+07:57:21 0|fmb-timetracker  | 2025-08-30T07:57:21: 2025-08-30T14:57:21.886Z ðŸŸ¢ [SERVER] Starting TimeTracker application...
+07:57:21 0|fmb-timetracker  | 2025-08-30T07:57:21: 2025-08-30T14:57:21.888Z ðŸŸ¢ [FMB-ONPREM] Production on-premises environment detected
+07:57:21 0|fmb-timetracker  | 2025-08-30T07:57:21: ðŸ”§ [DATABASE] Production on-premises mode: Attempting MS SQL Server connection...
+07:57:21 0|fmb-timetracker  | 2025-08-30T07:57:21: ðŸ”§ Initializing FMB on-premises MS SQL database...
+07:57:21 0|fmb-timetracker  | 2025-08-30T07:57:21: Database password: ********************
+07:57:21 0|fmb-timetracker  | 2025-08-30T07:57:21: ðŸ”— Attempting connection to HUB-SQL1TST-LIS:1433/timetracker
+07:57:21 0|fmb-timetracker  | 2025-08-30T07:57:21: 2025-08-30T14:57:21.890Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Connecting to HUB-SQL1TST-LIS:1433/timetracker
+07:57:22 0|fmb-timetracker  | 2025-08-30T07:57:22: 2025-08-30T14:57:22.066Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Successfully connected to MS SQL Server
+07:57:22 0|fmb-timetracker  | 2025-08-30T07:57:22: âœ… FMB MS SQL database connected successfully
+07:57:22 0|fmb-timetracker  | 2025-08-30T07:57:22: 2025-08-30T14:57:22.067Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Already connected to MS SQL Server
+07:57:22 0|fmb-timetracker  | 2025-08-30T07:57:22: âœ… [DATABASE] MS SQL Server initialized and connected successfully
+07:57:22 0|fmb-timetracker  | 2025-08-30T07:57:22: 2025-08-30T14:57:22.067Z ðŸŸ¢ [DATABASE] Database initialization completed successfully
+07:57:22 0|fmb-timetracker  | 2025-08-30T07:57:22: 2025-08-30T14:57:22.070Z ðŸ”´ [SERVER] Failed to start server: {}
+07:57:22 PM2                | App name:fmb-timetracker id:0 disconnected
+07:57:22 PM2                | App [fmb-timetracker:0] exited with code [1] via signal [SIGINT]
+07:57:27 PM2                | App [fmb-timetracker:0] starting in -cluster mode-
+07:57:27 PM2                | App [fmb-timetracker:0] online
+07:57:28 0|fmb-timetracker  | 2025-08-30T07:57:28: 2025-08-30T14:57:28.740Z ðŸŸ¢ [SERVER] Starting TimeTracker application...
+07:57:28 0|fmb-timetracker  | 2025-08-30T07:57:28: 2025-08-30T14:57:28.742Z ðŸŸ¢ [FMB-ONPREM] Production on-premises environment detected
+07:57:28 0|fmb-timetracker  | 2025-08-30T07:57:28: ðŸ”§ [DATABASE] Production on-premises mode: Attempting MS SQL Server connection...
+07:57:28 0|fmb-timetracker  | 2025-08-30T07:57:28: ðŸ”§ Initializing FMB on-premises MS SQL database...
+07:57:28 0|fmb-timetracker  | 2025-08-30T07:57:28: Database password: ********************
+07:57:28 0|fmb-timetracker  | 2025-08-30T07:57:28: ðŸ”— Attempting connection to HUB-SQL1TST-LIS:1433/timetracker
+07:57:28 0|fmb-timetracker  | 2025-08-30T07:57:28: 2025-08-30T14:57:28.744Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Connecting to HUB-SQL1TST-LIS:1433/timetracker
+07:57:28 0|fmb-timetracker  | 2025-08-30T07:57:28: 2025-08-30T14:57:28.927Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Successfully connected to MS SQL Server
+07:57:28 0|fmb-timetracker  | 2025-08-30T07:57:28: âœ… FMB MS SQL database connected successfully
+07:57:28 0|fmb-timetracker  | 2025-08-30T07:57:28: 2025-08-30T14:57:28.928Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Already connected to MS SQL Server
+07:57:28 0|fmb-timetracker  | 2025-08-30T07:57:28: âœ… [DATABASE] MS SQL Server initialized and connected successfully
+07:57:28 0|fmb-timetracker  | 2025-08-30T07:57:28: 2025-08-30T14:57:28.929Z ðŸŸ¢ [DATABASE] Database initialization completed successfully
+07:57:28 0|fmb-timetracker  | 2025-08-30T07:57:28: 2025-08-30T14:57:28.933Z ðŸ”´ [SERVER] Failed to start server: {}
+07:57:28 PM2                | App name:fmb-timetracker id:0 disconnected
+07:57:28 PM2                | App [fmb-timetracker:0] exited with code [1] via signal [SIGINT]
+07:57:33 PM2                | App [fmb-timetracker:0] starting in -cluster mode-
+07:57:34 PM2                | App [fmb-timetracker:0] online
+07:57:35 0|fmb-timetracker  | 2025-08-30T07:57:35: 2025-08-30T14:57:35.472Z ðŸŸ¢ [SERVER] Starting TimeTracker application...
+07:57:35 0|fmb-timetracker  | 2025-08-30T07:57:35: 2025-08-30T14:57:35.474Z ðŸŸ¢ [FMB-ONPREM] Production on-premises environment detected
+07:57:35 0|fmb-timetracker  | 2025-08-30T07:57:35: ðŸ”§ [DATABASE] Production on-premises mode: Attempting MS SQL Server connection...
+07:57:35 0|fmb-timetracker  | 2025-08-30T07:57:35: ðŸ”§ Initializing FMB on-premises MS SQL database...
+07:57:35 0|fmb-timetracker  | 2025-08-30T07:57:35: Database password: ********************
+07:57:35 0|fmb-timetracker  | 2025-08-30T07:57:35: ðŸ”— Attempting connection to HUB-SQL1TST-LIS:1433/timetracker
+07:57:35 0|fmb-timetracker  | 2025-08-30T07:57:35: 2025-08-30T14:57:35.476Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Connecting to HUB-SQL1TST-LIS:1433/timetracker
+07:57:35 0|fmb-timetracker  | 2025-08-30T07:57:35: 2025-08-30T14:57:35.658Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Successfully connected to MS SQL Server
+07:57:35 0|fmb-timetracker  | 2025-08-30T07:57:35: âœ… FMB MS SQL database connected successfully
+07:57:35 0|fmb-timetracker  | 2025-08-30T07:57:35: 2025-08-30T14:57:35.659Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Already connected to MS SQL Server
+07:57:35 0|fmb-timetracker  | 2025-08-30T07:57:35: âœ… [DATABASE] MS SQL Server initialized and connected successfully
+07:57:35 0|fmb-timetracker  | 2025-08-30T07:57:35: 2025-08-30T14:57:35.659Z ðŸŸ¢ [DATABASE] Database initialization completed successfully
+07:57:35 0|fmb-timetracker  | 2025-08-30T07:57:35: 2025-08-30T14:57:35.663Z ðŸ”´ [SERVER] Failed to start server: {}
+07:57:35 PM2                | App name:fmb-timetracker id:0 disconnected
+07:57:35 PM2                | App [fmb-timetracker:0] exited with code [1] via signal [SIGINT]
+07:57:40 PM2                | App [fmb-timetracker:0] starting in -cluster mode-
+07:57:40 PM2                | App [fmb-timetracker:0] online
+07:57:42 0|fmb-timetracker  | 2025-08-30T07:57:42: 2025-08-30T14:57:42.232Z ðŸŸ¢ [SERVER] Starting TimeTracker application...
+07:57:42 0|fmb-timetracker  | 2025-08-30T07:57:42: 2025-08-30T14:57:42.234Z ðŸŸ¢ [FMB-ONPREM] Production on-premises environment detected
+07:57:42 0|fmb-timetracker  | 2025-08-30T07:57:42: ðŸ”§ [DATABASE] Production on-premises mode: Attempting MS SQL Server connection...
+07:57:42 0|fmb-timetracker  | 2025-08-30T07:57:42: ðŸ”§ Initializing FMB on-premises MS SQL database...
+07:57:42 0|fmb-timetracker  | 2025-08-30T07:57:42: Database password: ********************
+07:57:42 0|fmb-timetracker  | 2025-08-30T07:57:42: ðŸ”— Attempting connection to HUB-SQL1TST-LIS:1433/timetracker
+07:57:42 0|fmb-timetracker  | 2025-08-30T07:57:42: 2025-08-30T14:57:42.236Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Connecting to HUB-SQL1TST-LIS:1433/timetracker
+07:57:42 0|fmb-timetracker  | 2025-08-30T07:57:42: 2025-08-30T14:57:42.413Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Successfully connected to MS SQL Server
+07:57:42 0|fmb-timetracker  | 2025-08-30T07:57:42: âœ… FMB MS SQL database connected successfully
+07:57:42 0|fmb-timetracker  | 2025-08-30T07:57:42: 2025-08-30T14:57:42.414Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Already connected to MS SQL Server
+07:57:42 0|fmb-timetracker  | 2025-08-30T07:57:42: âœ… [DATABASE] MS SQL Server initialized and connected successfully
+07:57:42 0|fmb-timetracker  | 2025-08-30T07:57:42: 2025-08-30T14:57:42.414Z ðŸŸ¢ [DATABASE] Database initialization completed successfully
+07:57:42 0|fmb-timetracker  | 2025-08-30T07:57:42: 2025-08-30T14:57:42.418Z ðŸ”´ [SERVER] Failed to start server: {}
+07:57:42 PM2                | App name:fmb-timetracker id:0 disconnected
+07:57:42 PM2                | App [fmb-timetracker:0] exited with code [1] via signal [SIGINT]
+07:57:47 PM2                | App [fmb-timetracker:0] starting in -cluster mode-
+07:57:47 PM2                | App [fmb-timetracker:0] online
+07:57:49 0|fmb-timetracker  | 2025-08-30T07:57:49: 2025-08-30T14:57:49.052Z ðŸŸ¢ [SERVER] Starting TimeTracker application...
+07:57:49 0|fmb-timetracker  | 2025-08-30T07:57:49: 2025-08-30T14:57:49.054Z ðŸŸ¢ [FMB-ONPREM] Production on-premises environment detected
+07:57:49 0|fmb-timetracker  | 2025-08-30T07:57:49: ðŸ”§ [DATABASE] Production on-premises mode: Attempting MS SQL Server connection...
+07:57:49 0|fmb-timetracker  | 2025-08-30T07:57:49: ðŸ”§ Initializing FMB on-premises MS SQL database...
+07:57:49 0|fmb-timetracker  | 2025-08-30T07:57:49: Database password: ********************
+07:57:49 0|fmb-timetracker  | 2025-08-30T07:57:49: ðŸ”— Attempting connection to HUB-SQL1TST-LIS:1433/timetracker
+07:57:49 0|fmb-timetracker  | 2025-08-30T07:57:49: 2025-08-30T14:57:49.056Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Connecting to HUB-SQL1TST-LIS:1433/timetracker
+07:57:49 0|fmb-timetracker  | 2025-08-30T07:57:49: 2025-08-30T14:57:49.234Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Successfully connected to MS SQL Server
+07:57:49 0|fmb-timetracker  | 2025-08-30T07:57:49: âœ… FMB MS SQL database connected successfully
+07:57:49 0|fmb-timetracker  | 2025-08-30T07:57:49: 2025-08-30T14:57:49.235Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Already connected to MS SQL Server
+07:57:49 0|fmb-timetracker  | 2025-08-30T07:57:49: âœ… [DATABASE] MS SQL Server initialized and connected successfully
+07:57:49 0|fmb-timetracker  | 2025-08-30T07:57:49: 2025-08-30T14:57:49.235Z ðŸŸ¢ [DATABASE] Database initialization completed successfully
+07:57:49 0|fmb-timetracker  | 2025-08-30T07:57:49: 2025-08-30T14:57:49.239Z ðŸ”´ [SERVER] Failed to start server: {}
+07:57:49 PM2                | App name:fmb-timetracker id:0 disconnected
+07:57:49 PM2                | App [fmb-timetracker:0] exited with code [1] via signal [SIGINT]
+07:57:54 PM2                | App [fmb-timetracker:0] starting in -cluster mode-
+07:57:54 PM2                | App [fmb-timetracker:0] online
+07:57:55 0|fmb-timetracker  | 2025-08-30T07:57:55: 2025-08-30T14:57:55.794Z ðŸŸ¢ [SERVER] Starting TimeTracker application...
+07:57:55 0|fmb-timetracker  | 2025-08-30T07:57:55: 2025-08-30T14:57:55.797Z ðŸŸ¢ [FMB-ONPREM] Production on-premises environment detected
+07:57:55 0|fmb-timetracker  | 2025-08-30T07:57:55: ðŸ”§ [DATABASE] Production on-premises mode: Attempting MS SQL Server connection...
+07:57:55 0|fmb-timetracker  | 2025-08-30T07:57:55: ðŸ”§ Initializing FMB on-premises MS SQL database...
+07:57:55 0|fmb-timetracker  | 2025-08-30T07:57:55: Database password: ********************
+07:57:55 0|fmb-timetracker  | 2025-08-30T07:57:55: ðŸ”— Attempting connection to HUB-SQL1TST-LIS:1433/timetracker
+07:57:55 0|fmb-timetracker  | 2025-08-30T07:57:55: 2025-08-30T14:57:55.799Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Connecting to HUB-SQL1TST-LIS:1433/timetracker
+07:57:55 0|fmb-timetracker  | 2025-08-30T07:57:55: 2025-08-30T14:57:55.978Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Successfully connected to MS SQL Server
+07:57:55 0|fmb-timetracker  | 2025-08-30T07:57:55: âœ… FMB MS SQL database connected successfully
+07:57:55 0|fmb-timetracker  | 2025-08-30T07:57:55: 2025-08-30T14:57:55.979Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Already connected to MS SQL Server
+07:57:55 0|fmb-timetracker  | 2025-08-30T07:57:55: âœ… [DATABASE] MS SQL Server initialized and connected successfully
+07:57:55 0|fmb-timetracker  | 2025-08-30T07:57:55: 2025-08-30T14:57:55.979Z ðŸŸ¢ [DATABASE] Database initialization completed successfully
+07:57:55 0|fmb-timetracker  | 2025-08-30T07:57:55: 2025-08-30T14:57:55.982Z ðŸ”´ [SERVER] Failed to start server: {}
+07:57:55 PM2                | App name:fmb-timetracker id:0 disconnected
+07:57:56 PM2                | App [fmb-timetracker:0] exited with code [1] via signal [SIGINT]
+07:57:56 PM2                | Script C:\fmb-timetracker\dist\index.js had too many unstable restarts (10). Stopped. "errored"
