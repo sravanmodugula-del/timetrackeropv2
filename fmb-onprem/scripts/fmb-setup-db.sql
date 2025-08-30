@@ -411,13 +411,13 @@ GO
 -- =============================================================================
 -- Insert sample time entries
 -- =============================================================================
-INSERT INTO time_entries (id, user_id, project_id, task_id, start_time, end_time, duration_minutes, description, is_billable, created_at, updated_at)
+INSERT INTO time_entries (id, user_id, project_id, description, hours, duration, date, start_time, end_time, is_billable, created_at, updated_at)
 VALUES 
-(1, 1, 1, 1, '2024-01-15 09:00:00', '2024-01-15 10:30:00', 90, 'Morning development work', 1, GETDATE(), GETDATE()),
-(2, 1, 1, 2, '2024-01-15 10:45:00', '2024-01-15 12:00:00', 75, 'Testing and debugging', 1, GETDATE(), GETDATE()),
-(3, 2, 2, 3, '2024-01-15 14:00:00', '2024-01-15 16:30:00', 150, 'Client meeting and planning', 1, GETDATE(), GETDATE());
+('te-001', 'admin-001', 'proj-sample', 'Morning development work', 1.5, 1.5, '2024-01-15', '2024-01-15 09:00:00', '2024-01-15 10:30:00', 1, GETDATE(), GETDATE()),
+('te-002', 'admin-001', 'proj-sample', 'Testing and debugging', 1.25, 1.25, '2024-01-15', '2024-01-15 10:45:00', '2024-01-15 12:00:00', 1, GETDATE(), GETDATE()),
+('te-003', 'admin-001', 'proj-sample', 'System configuration', 2.5, 2.5, '2024-01-15', '2024-01-15 14:00:00', '2024-01-15 16:30:00', 1, GETDATE(), GETDATE());
 
-PRINT 'Sample data inserted successfully';
+PRINT 'Sample time entries inserted successfully';
 
 -- =============================================================================
 -- Create sessions table for MS SQL session store
