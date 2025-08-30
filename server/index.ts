@@ -7,7 +7,7 @@ import { dirname } from "path";
 import { checkDatabaseHealth } from "./db.js";
 import { registerRoutes } from "./routes.js";
 import { setupVite, serveStatic } from "./vite.js";
-import { isFmbOnPremEnvironment } from '../fmb-onprem/config/fmb-env.js';
+import { isFmbOnPremEnvironment, loadFmbOnPremConfig } from '../fmb-onprem/config/fmb-env.js';
 import { initializeDatabase } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -103,11 +103,11 @@ async function getSession() {
 
   const sessionConfig: any = {
     secret: sessionSecret,
-    resave: false,
-    saveUninitialized: false,
+    resave: true, // Force session save for SAML authentication
+    saveUninitialized: true, // Save uninitialized sessions for SAML flow
     rolling: true,
     cookie: {
-      httpOnly: !isProduction ? false : true,
+      httpOnly: isProduction,
       secure: false, // Set to false for development and on-premises without HTTPS
       maxAge: sessionTtl,
       sameSite: 'lax' as const
@@ -119,63 +119,51 @@ async function getSession() {
   if (isProduction && isOnPrem) {
     try {
       const MSSQLStore = (await import('connect-mssql-v2')).default;
-      const { OptimizedSessionManager } = await import('../fmb-onprem/storage/session-manager.js');
+      const config = loadFmbOnPremConfig();
 
-      const sessionManager = OptimizedSessionManager.getInstance();
-      const sessionPool = await sessionManager.initializeSessionPool();
-
-      // Enhanced session store configuration with optimizations
+      // Enhanced session store configuration with proper error handling
       sessionConfig.store = new MSSQLStore({
-        server: process.env.FMB_DB_SERVER!,
-        port: parseInt(process.env.FMB_DB_PORT || '1433', 10),
-        database: process.env.FMB_DB_NAME!,
-        user: process.env.FMB_DB_USER!,
-        password: process.env.FMB_DB_PASSWORD!,
+        server: config.database.server,
+        port: config.database.port,
+        database: config.database.database,
+        user: config.database.user,
+        password: config.database.password,
         options: {
-          encrypt: process.env.FMB_DB_ENCRYPT !== 'false',
-          trustServerCertificate: process.env.FMB_DB_TRUST_CERT === 'true',
+          encrypt: config.database.encrypt,
+          trustServerCertificate: config.database.trustServerCertificate,
           enableArithAbort: true,
+          connectTimeout: 30000,
+          requestTimeout: 30000,
           // Connection pool settings optimized for sessions
           pool: {
-            max: 5,
-            min: 1,
-            idleTimeoutMillis: 30000
+            max: 10,
+            min: 2,
+            idleTimeoutMillis: 30000,
+            acquireTimeoutMillis: 30000
           }
         },
         table: 'sessions',
         autoRemove: 'interval',
-        autoRemoveInterval: 3, // More frequent cleanup (3 minutes)
+        autoRemoveInterval: 5, // Cleanup every 5 minutes
         schemaName: 'dbo',
-        // Performance optimizations
         useUTC: true,
-        disableTouch: false, // Enable session extension on activity
-        // Enhanced error handling
-        onError: (err: Error) => {
-          enhancedLog('ERROR', 'SESSION-STORE', 'Session store error:', {
-            message: err.message,
-            code: (err as any).code,
-            severity: (err as any).severity
-          });
-        }
+        disableTouch: false
       });
 
-      // Schedule periodic cleanup of expired sessions
-      setInterval(async () => {
-        try {
-          await sessionManager.cleanupExpiredSessions();
-        } catch (error) {
-          enhancedLog('WARN', 'SESSION-CLEANUP', 'Periodic cleanup failed:', error);
-        }
-      }, 5 * 60 * 1000); // Every 5 minutes
-
-      enhancedLog('INFO', 'SESSION', 'Optimized MS SQL session store initialized with enhanced connection pooling');
+      enhancedLog('INFO', 'SESSION', 'MS SQL session store initialized successfully');
     } catch (error) {
-      enhancedLog('WARN', 'SESSION', 'Failed to initialize optimized MS SQL session store:', {
+      enhancedLog('ERROR', 'SESSION', 'Failed to initialize MS SQL session store:', {
         message: error?.message || 'Unknown error',
         code: error?.code || 'NO_CODE',
-        errno: error?.errno || 'NO_ERRNO'
+        name: error?.name || 'NO_NAME',
+        stack: error?.stack || 'NO_STACK',
+        originalError: error?.originalError || 'NO_ORIGINAL',
+        number: error?.number || 'NO_NUMBER',
+        severity: error?.severity || 'NO_SEVERITY',
+        state: error?.state || 'NO_STATE',
+        fullError: JSON.stringify(error, Object.getOwnPropertyNames(error))
       });
-      enhancedLog('INFO', 'SESSION', 'Using memory session store as fallback');
+      enhancedLog('WARN', 'SESSION', 'Using memory session store as fallback');
     }
   } else {
     enhancedLog('INFO', 'SESSION', 'Using memory session store');
