@@ -115,51 +115,62 @@ async function getSession() {
     name: 'timetracker.sid'
   };
 
-  // Use MS SQL session store for on-premises production
+  // Use optimized MS SQL session store for on-premises production
   if (isProduction && isOnPrem) {
     try {
       const MSSQLStore = (await import('connect-mssql-v2')).default;
-      const sql = (await import('mssql')).default;
-      
-      const poolConfig = {
-        server: process.env.FMB_DB_SERVER || 'localhost',
-        database: process.env.FMB_DB_NAME || 'timetracker',
-        user: process.env.FMB_DB_USER || 'sa',
-        password: process.env.FMB_DB_PASSWORD || '',
+      const { OptimizedSessionManager } = await import('../fmb-onprem/storage/session-manager.js');
+
+      const sessionManager = OptimizedSessionManager.getInstance();
+      const sessionPool = await sessionManager.initializeSessionPool();
+
+      // Enhanced session store configuration with optimizations
+      sessionConfig.store = new MSSQLStore({
+        server: process.env.FMB_DB_SERVER!,
         port: parseInt(process.env.FMB_DB_PORT || '1433', 10),
+        database: process.env.FMB_DB_NAME!,
+        user: process.env.FMB_DB_USER!,
+        password: process.env.FMB_DB_PASSWORD!,
         options: {
           encrypt: process.env.FMB_DB_ENCRYPT !== 'false',
           trustServerCertificate: process.env.FMB_DB_TRUST_CERT === 'true',
           enableArithAbort: true,
-          connectTimeout: 30000,
-          requestTimeout: 30000
-        }
-      };
-
-      const pool = new sql.ConnectionPool(poolConfig);
-      await pool.connect();
-      
-      // Ensure sessions table exists
-      const request = new sql.Request(pool);
-      await request.query(`
-        IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='sessions' AND xtype='U')
-        CREATE TABLE sessions (
-          sid NVARCHAR(255) NOT NULL PRIMARY KEY,
-          session NTEXT NOT NULL,
-          expires DATETIME NULL
-        )
-      `);
-      
-      sessionConfig.store = new MSSQLStore({
-        connectionString: `Server=${poolConfig.server},${poolConfig.port};Database=${poolConfig.database};User Id=${poolConfig.user};Password=${poolConfig.password};Encrypt=${poolConfig.options.encrypt};TrustServerCertificate=${poolConfig.options.trustServerCertificate};`,
+          // Connection pool settings optimized for sessions
+          pool: {
+            max: 5,
+            min: 1,
+            idleTimeoutMillis: 30000
+          }
+        },
         table: 'sessions',
         autoRemove: 'interval',
-        autoRemoveInterval: 10 // minutes
+        autoRemoveInterval: 3, // More frequent cleanup (3 minutes)
+        schemaName: 'dbo',
+        // Performance optimizations
+        useUTC: true,
+        disableTouch: false, // Enable session extension on activity
+        // Enhanced error handling
+        onError: (err: Error) => {
+          enhancedLog('ERROR', 'SESSION-STORE', 'Session store error:', {
+            message: err.message,
+            code: (err as any).code,
+            severity: (err as any).severity
+          });
+        }
       });
-      
-      enhancedLog('INFO', 'SESSION', 'MS SQL session store initialized successfully');
+
+      // Schedule periodic cleanup of expired sessions
+      setInterval(async () => {
+        try {
+          await sessionManager.cleanupExpiredSessions();
+        } catch (error) {
+          enhancedLog('WARN', 'SESSION-CLEANUP', 'Periodic cleanup failed:', error);
+        }
+      }, 5 * 60 * 1000); // Every 5 minutes
+
+      enhancedLog('INFO', 'SESSION', 'Optimized MS SQL session store initialized with enhanced connection pooling');
     } catch (error) {
-      enhancedLog('WARN', 'SESSION', 'Failed to initialize MS SQL session store:', {
+      enhancedLog('WARN', 'SESSION', 'Failed to initialize optimized MS SQL session store:', {
         message: error?.message || 'Unknown error',
         code: error?.code || 'NO_CODE',
         errno: error?.errno || 'NO_ERRNO'
@@ -245,10 +256,10 @@ async function createServer() {
       const dbHealthy = await checkDatabaseHealth();
       const isDevelopment = process.env.NODE_ENV === 'development';
       const isOnPrem = isFmbOnPremEnvironment();
-      
+
       let databaseStatus = 'unknown';
       let statusMessage = '';
-      
+
       if (isDevelopment && !isOnPrem) {
         databaseStatus = 'fallback';
         statusMessage = 'Running in development mode with fallback storage';
@@ -318,11 +329,11 @@ async function createServer() {
         port: error?.port || 'NO_PORT',
         stack: error?.stack || 'NO_STACK'
       });
-      
+
       if (error?.code === 'EADDRINUSE') {
         enhancedLog('ERROR', 'SERVER', `Port ${port} is already in use. Please choose a different port.`);
       }
-      
+
       process.exit(1);
     });
 
@@ -334,14 +345,14 @@ async function createServer() {
       stack: error?.stack || 'NO_STACK',
       fullError: error
     });
-    
+
     // Don't exit on database connection errors in development
-    if (process.env.NODE_ENV === 'development' && 
+    if (process.env.NODE_ENV === 'development' &&
         error?.message?.includes('database')) {
       enhancedLog('WARN', 'SERVER', 'Database error in development - continuing without database');
       return;
     }
-    
+
     process.exit(1);
   }
 }
