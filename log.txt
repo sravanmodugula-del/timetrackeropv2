@@ -1,73 +1,74 @@
-08:25:51 0|fmb-timetracker  | 2025-08-30T08:25:51: 2025-08-30T15:25:51.018Z ðŸŸ¢ [SERVER] Starting TimeTracker application...
-08:25:51 0|fmb-timetracker  | 2025-08-30T08:25:51: 2025-08-30T15:25:51.020Z ðŸŸ¢ [FMB-ONPREM] Production on-premises environment detected
-08:25:51 0|fmb-timetracker  | 2025-08-30T08:25:51: ðŸ”§ [DATABASE] Production on-premises mode: Attempting MS SQL Server connection...
-08:25:51 0|fmb-timetracker  | 2025-08-30T08:25:51: ðŸ”§ Initializing FMB on-premises MS SQL database...
-08:25:51 0|fmb-timetracker  | 2025-08-30T08:25:51: Database password: ********************
-08:25:51 0|fmb-timetracker  | 2025-08-30T08:25:51: ðŸ”— Attempting connection to HUB-SQL1TST-LIS:1433/timetracker
-08:25:51 0|fmb-timetracker  | 2025-08-30T08:25:51: 2025-08-30T15:25:51.022Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Connecting to HUB-SQL1TST-LIS:1433/timetracker
-08:25:51 0|fmb-timetracker  | 2025-08-30T08:25:51: 2025-08-30T15:25:51.202Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Successfully connected to MS SQL Server
-08:25:51 0|fmb-timetracker  | 2025-08-30T08:25:51: âœ… FMB MS SQL database connected successfully
-08:25:51 0|fmb-timetracker  | 2025-08-30T08:25:51: 2025-08-30T15:25:51.203Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Already connected to MS SQL Server
-08:25:51 0|fmb-timetracker  | 2025-08-30T08:25:51: âœ… [DATABASE] MS SQL Server initialized and connected successfully
-08:25:51 0|fmb-timetracker  | 2025-08-30T08:25:51: 2025-08-30T15:25:51.203Z ðŸŸ¢ [DATABASE] Database initialization completed successfully
-08:25:51 0|fmb-timetracker  | 2025-08-30T08:25:51: 2025-08-30T15:25:51.207Z ðŸŸ¢ [SESSION] Session configured for production mode
-08:25:51 0|fmb-timetracker  | 2025-08-30T08:25:51: 2025-08-30T15:25:51.207Z ðŸŸ¢ [SESSION] Using memory session store
-08:25:51 0|fmb-timetracker  | 2025-08-30T08:25:51: Warning: connect.session() MemoryStore is not
-08:25:51 0|fmb-timetracker  | designed for a production environment, as it will leak
-08:25:51 0|fmb-timetracker  | memory, and will not scale past a single process.
-08:25:51 0|fmb-timetracker  | 2025-08-30T08:25:51: 2025-08-30T15:25:51.208Z ðŸŸ¢ [SERVER] Session middleware configured successfully
-08:25:51 0|fmb-timetracker  | 2025-08-30T08:25:51: ðŸš€ Setting up FMB SAML Authentication for On-Premises production environment...
-08:25:51 0|fmb-timetracker  | 2025-08-30T08:25:51: 2025-08-30T15:25:51.213Z ðŸ”µ [FMB-SAML] Initializing FMB SAML Authentication...
-08:25:51 0|fmb-timetracker  | 2025-08-30T08:25:51: Database password: ********************
-08:25:51 0|fmb-timetracker  | 2025-08-30T08:25:51: 2025-08-30T15:25:51.214Z ðŸ”µ [FMB-SAML] Using existing session middleware for FMB SAML authentication
-08:25:51 0|fmb-timetracker  | 2025-08-30T08:25:51: 2025-08-30T15:25:51.215Z ðŸ”µ [FMB-SAML] FMB SAML Authentication configured successfully
-08:25:51 0|fmb-timetracker  | 2025-08-30T08:25:51: 2025-08-30T15:25:51.221Z ðŸŸ¢ [SERVER] Server running on http://0.0.0.0:3000
-08:25:51 0|fmb-timetracker  | 2025-08-30T08:25:51: 2025-08-30T15:25:51.222Z ðŸŸ¢ [SERVER] Environment: production
-08:25:51 0|fmb-timetracker  | 2025-08-30T08:25:51: 2025-08-30T15:25:51.222Z ðŸŸ¢ [FMB-ONPREM] On-premises deployment active
-08:25:59 0|fmb-timetracker  | 2025-08-30T08:25:59: 2025-08-30T15:25:59.186Z ðŸ”µ [FMB-SAML] SAML ACS callback received {
-08:25:59 0|fmb-timetracker  |   "ip": "192.168.209.51:56227",
-08:25:59 0|fmb-timetracker  |   "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 Edg/139.0.0.0"
-08:25:59 0|fmb-timetracker  | }
-08:25:59 0|fmb-timetracker  | 2025-08-30T08:25:59: 2025-08-30T15:25:59.260Z ðŸ”µ [FMB-SAML] SAML authentication successful {
-08:25:59 0|fmb-timetracker  |   "nameID": "Sravan.Modugula@fmb.com",
-08:25:59 0|fmb-timetracker  |   "email": "Sravan.Modugula@fmb.com",
-08:25:59 0|fmb-timetracker  |   "firstName": "Sravan",
-08:25:59 0|fmb-timetracker  |   "lastName": "Modugula"
-08:25:59 0|fmb-timetracker  | }
-08:25:59 0|fmb-timetracker  | 2025-08-30T08:25:59: 2025-08-30T15:25:59.261Z ðŸ—„ï¸ [FMB-STORAGE] EXECUTE: Running query: SELECT * FROM users WHERE email = @param0... { paramCount: 1 }
-08:25:59 0|fmb-timetracker  | 2025-08-30T08:25:59: 2025-08-30T15:25:59.427Z ðŸ—„ï¸ [FMB-STORAGE] EXECUTE: Query completed successfully { recordCount: 0 }
-08:25:59 0|fmb-timetracker  | 2025-08-30T08:25:59: 2025-08-30T15:25:59.428Z ðŸ—„ï¸ [FMB-STORAGE] EXECUTE: Running query: 
-08:25:59 0|fmb-timetracker  |         INSERT INTO users (id, email, first_name, last_name, profile_image_url, 
-08:25:59 0|fmb-timetracker  |                   ... { paramCount: 8 }
-08:25:59 0|fmb-timetracker  | 2025-08-30T08:25:59: 2025-08-30T15:25:59.530Z ðŸ—„ï¸ [FMB-STORAGE] EXECUTE: Query completed successfully { recordCount: 0 }
-08:25:59 0|fmb-timetracker  | 2025-08-30T08:25:59: 2025-08-30T15:25:59.531Z ðŸ—„ï¸ [FMB-STORAGE] EXECUTE: Running query: SELECT * FROM users WHERE id = @param0... { paramCount: 1 }
-08:25:59 0|fmb-timetracker  | 2025-08-30T08:25:59: 2025-08-30T15:25:59.564Z ðŸ—„ï¸ [FMB-STORAGE] EXECUTE: Query completed successfully { recordCount: 1 }
-08:25:59 0|fmb-timetracker  | 2025-08-30T08:25:59: 2025-08-30T15:25:59.564Z ðŸ”µ [FMB-SAML] User upserted in database: Sravan.Modugula@fmb.com
-08:25:59 0|fmb-timetracker  | 2025-08-30T08:25:59: 2025-08-30T15:25:59.607Z ðŸ—„ï¸ [FMB-STORAGE] EXECUTE: Running query: SELECT * FROM users WHERE id = @param0... { paramCount: 1 }
-08:25:59 0|fmb-timetracker  | 2025-08-30T08:25:59: 2025-08-30T15:25:59.639Z ðŸ—„ï¸ [FMB-STORAGE] EXECUTE: Query completed successfully { recordCount: 0 }
-08:26:00 0|fmb-timetracker  | 2025-08-30T08:26:00: 2025-08-30T15:26:00.066Z ðŸŸ¢ [FMB-SAML] Authentication check for GET /api/auth/user {
-08:26:00 0|fmb-timetracker  |   "ip": "192.168.209.51:56227",
-08:26:00 0|fmb-timetracker  |   "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 Edg/139.0.0.0",
-08:26:00 0|fmb-timetracker  |   "sessionId": "d87GOgor40oXGgD_2PblgCHRf-DVzCOc",
-08:26:00 0|fmb-timetracker  |   "hasSession": true,
-08:26:00 0|fmb-timetracker  |   "isAuthenticated": false
-08:26:00 0|fmb-timetracker  | }
-08:26:00 0|fmb-timetracker  | 2025-08-30T08:26:00: 2025-08-30T15:26:00.067Z ðŸŸ¡ [FMB-SAML] Unauthorized access attempt {
-08:26:00 0|fmb-timetracker  |   "path": "/api/auth/user",
-08:26:00 0|fmb-timetracker  |   "method": "GET",
-08:26:00 0|fmb-timetracker  |   "ip": "192.168.209.51:56227",
-08:26:00 0|fmb-timetracker  |   "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 Edg/139.0.0.0",
-08:26:00 0|fmb-timetracker  |   "sessionId": "d87GOgor40oXGgD_2PblgCHRf-DVzCOc"
-08:26:00 0|fmb-timetracker  | }
-08:26:00 0|fmb-timetracker  | 2025-08-30T08:26:00: 2025-08-30T15:26:00.088Z ðŸ”´ [FRONTEND-API] HTTP 401 error on https://timetracker.fmb.com/api/auth/user {
-08:26:00 0|fmb-timetracker  |   data: {
-08:26:00 0|fmb-timetracker  |     status: 401,
-08:26:00 0|fmb-timetracker  |     statusText: '',
-08:26:00 0|fmb-timetracker  |     responseText: '{"message":"Unauthorized"}',
-08:26:00 0|fmb-timetracker  |     url: 'https://timetracker.fmb.com/api/auth/user'
-08:26:00 0|fmb-timetracker  |   },
-08:26:00 0|fmb-timetracker  |   url: 'https://timetracker.fmb.com/',
-08:26:00 0|fmb-timetracker  |   userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 Edg/139.0.0.0',
-08:26:00 0|fmb-timetracker  |   ip: '192.168.209.51:56227',
-08:26:00 0|fmb-timetracker  |   sessionId: 'd87GOgor40oXGgD_2PblgCHRf-DVzCOc'
-08:26:00 0|fmb-timetracker  | }
+08:31:02 0|fmb-timetracker  | 2025-08-30T08:31:02: 2025-08-30T15:31:02.213Z ðŸŸ¢ [SERVER] Starting TimeTracker application...
+08:31:02 0|fmb-timetracker  | 2025-08-30T08:31:02: 2025-08-30T15:31:02.215Z ðŸŸ¢ [FMB-ONPREM] Production on-premises environment detected
+08:31:02 0|fmb-timetracker  | 2025-08-30T08:31:02: ðŸ”§ [DATABASE] Production on-premises mode: Attempting MS SQL Server connection...
+08:31:02 0|fmb-timetracker  | 2025-08-30T08:31:02: ðŸ”§ Initializing FMB on-premises MS SQL database...
+08:31:02 0|fmb-timetracker  | 2025-08-30T08:31:02: Database password: ********************
+08:31:02 0|fmb-timetracker  | 2025-08-30T08:31:02: ðŸ”— Attempting connection to HUB-SQL1TST-LIS:1433/timetracker
+08:31:02 0|fmb-timetracker  | 2025-08-30T08:31:02: 2025-08-30T15:31:02.217Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Connecting to HUB-SQL1TST-LIS:1433/timetracker
+08:31:02 0|fmb-timetracker  | 2025-08-30T08:31:02: 2025-08-30T15:31:02.408Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Successfully connected to MS SQL Server
+08:31:02 0|fmb-timetracker  | 2025-08-30T08:31:02: âœ… FMB MS SQL database connected successfully
+08:31:02 0|fmb-timetracker  | 2025-08-30T08:31:02: 2025-08-30T15:31:02.408Z ðŸ—„ï¸ [FMB-STORAGE] CONNECT: Already connected to MS SQL Server
+08:31:02 0|fmb-timetracker  | 2025-08-30T08:31:02: âœ… [DATABASE] MS SQL Server initialized and connected successfully
+08:31:02 0|fmb-timetracker  | 2025-08-30T08:31:02: 2025-08-30T15:31:02.409Z ðŸŸ¢ [DATABASE] Database initialization completed successfully
+08:31:02 0|fmb-timetracker  | 2025-08-30T08:31:02: 2025-08-30T15:31:02.412Z ðŸŸ¢ [SESSION] Session configured for production mode
+08:31:02 0|fmb-timetracker  | 2025-08-30T08:31:02: 2025-08-30T15:31:02.898Z ðŸŸ¡ [SESSION] Failed to initialize MS SQL session store, falling back to memory store: {}
+08:31:02 0|fmb-timetracker  | 2025-08-30T08:31:02: 2025-08-30T15:31:02.899Z ðŸŸ¢ [SESSION] Using memory session store as fallback
+08:31:02 0|fmb-timetracker  | 2025-08-30T08:31:02: Warning: connect.session() MemoryStore is not
+08:31:02 0|fmb-timetracker  | designed for a production environment, as it will leak
+08:31:02 0|fmb-timetracker  | memory, and will not scale past a single process.
+08:31:02 0|fmb-timetracker  | 2025-08-30T08:31:02: 2025-08-30T15:31:02.900Z ðŸŸ¢ [SERVER] Session middleware configured successfully
+08:31:02 0|fmb-timetracker  | 2025-08-30T08:31:02: ðŸš€ Setting up FMB SAML Authentication for On-Premises production environment...
+08:31:02 0|fmb-timetracker  | 2025-08-30T08:31:02: 2025-08-30T15:31:02.904Z ðŸ”µ [FMB-SAML] Initializing FMB SAML Authentication...
+08:31:02 0|fmb-timetracker  | 2025-08-30T08:31:02: Database password: ********************
+08:31:02 0|fmb-timetracker  | 2025-08-30T08:31:02: 2025-08-30T15:31:02.904Z ðŸ”µ [FMB-SAML] Using existing session middleware for FMB SAML authentication
+08:31:02 0|fmb-timetracker  | 2025-08-30T08:31:02: 2025-08-30T15:31:02.906Z ðŸ”µ [FMB-SAML] FMB SAML Authentication configured successfully
+08:31:02 0|fmb-timetracker  | 2025-08-30T08:31:02: 2025-08-30T15:31:02.916Z ðŸŸ¢ [SERVER] Server running on http://0.0.0.0:3000
+08:31:02 0|fmb-timetracker  | 2025-08-30T08:31:02: 2025-08-30T15:31:02.917Z ðŸŸ¢ [SERVER] Environment: production
+08:31:02 0|fmb-timetracker  | 2025-08-30T08:31:02: 2025-08-30T15:31:02.917Z ðŸŸ¢ [FMB-ONPREM] On-premises deployment active
+08:31:06 0|fmb-timetracker  | 2025-08-30T08:31:06: 2025-08-30T15:31:06.019Z ðŸ”µ [FMB-SAML] SAML ACS callback received {
+08:31:06 0|fmb-timetracker  |   "ip": "192.168.209.51:56560",
+08:31:06 0|fmb-timetracker  |   "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 Edg/139.0.0.0"
+08:31:06 0|fmb-timetracker  | }
+08:31:06 0|fmb-timetracker  | 2025-08-30T08:31:06: 2025-08-30T15:31:06.088Z ðŸ”µ [FMB-SAML] SAML authentication successful {
+08:31:06 0|fmb-timetracker  |   "nameID": "Sravan.Modugula@fmb.com",
+08:31:06 0|fmb-timetracker  |   "email": "Sravan.Modugula@fmb.com",
+08:31:06 0|fmb-timetracker  |   "firstName": "Sravan",
+08:31:06 0|fmb-timetracker  |   "lastName": "Modugula"
+08:31:06 0|fmb-timetracker  | }
+08:31:06 0|fmb-timetracker  | 2025-08-30T08:31:06: 2025-08-30T15:31:06.089Z ðŸ—„ï¸ [FMB-STORAGE] EXECUTE: Running query: SELECT * FROM users WHERE email = @param0... { paramCount: 1 }
+08:31:06 0|fmb-timetracker  | 2025-08-30T08:31:06: 2025-08-30T15:31:06.221Z ðŸ—„ï¸ [FMB-STORAGE] EXECUTE: Query completed successfully { recordCount: 1 }
+08:31:06 0|fmb-timetracker  | 2025-08-30T08:31:06: 2025-08-30T15:31:06.222Z ðŸ—„ï¸ [FMB-STORAGE] EXECUTE: Running query: 
+08:31:06 0|fmb-timetracker  |         UPDATE users 
+08:31:06 0|fmb-timetracker  |         SET first_name = @param0, last_name = @param1, profile_image_url = @p... { paramCount: 7 }
+08:31:06 0|fmb-timetracker  | 2025-08-30T08:31:06: 2025-08-30T15:31:06.322Z ðŸ—„ï¸ [FMB-STORAGE] EXECUTE: Query completed successfully { recordCount: 0 }
+08:31:06 0|fmb-timetracker  | 2025-08-30T08:31:06: 2025-08-30T15:31:06.323Z ðŸ—„ï¸ [FMB-STORAGE] EXECUTE: Running query: SELECT * FROM users WHERE email = @param0... { paramCount: 1 }
+08:31:06 0|fmb-timetracker  | 2025-08-30T08:31:06: 2025-08-30T15:31:06.354Z ðŸ—„ï¸ [FMB-STORAGE] EXECUTE: Query completed successfully { recordCount: 1 }
+08:31:06 0|fmb-timetracker  | 2025-08-30T08:31:06: 2025-08-30T15:31:06.355Z ðŸ”µ [FMB-SAML] User upserted in database: Sravan.Modugula@fmb.com
+08:31:06 0|fmb-timetracker  | 2025-08-30T08:31:06: 2025-08-30T15:31:06.400Z ðŸ—„ï¸ [FMB-STORAGE] EXECUTE: Running query: SELECT * FROM users WHERE id = @param0... { paramCount: 1 }
+08:31:06 0|fmb-timetracker  | 2025-08-30T08:31:06: 2025-08-30T15:31:06.429Z ðŸ—„ï¸ [FMB-STORAGE] EXECUTE: Query completed successfully { recordCount: 0 }
+08:31:06 0|fmb-timetracker  | 2025-08-30T08:31:06: 2025-08-30T15:31:06.853Z ðŸŸ¢ [FMB-SAML] Authentication check for GET /api/auth/user {
+08:31:06 0|fmb-timetracker  |   "ip": "192.168.209.51:56560",
+08:31:06 0|fmb-timetracker  |   "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 Edg/139.0.0.0",
+08:31:06 0|fmb-timetracker  |   "sessionId": "IJJGWHeKhcKP1injvqcsk7ZG1frJL3-_",
+08:31:06 0|fmb-timetracker  |   "hasSession": true,
+08:31:06 0|fmb-timetracker  |   "isAuthenticated": false
+08:31:06 0|fmb-timetracker  | }
+08:31:06 0|fmb-timetracker  | 2025-08-30T08:31:06: 2025-08-30T15:31:06.853Z ðŸŸ¡ [FMB-SAML] Unauthorized access attempt {
+08:31:06 0|fmb-timetracker  |   "path": "/api/auth/user",
+08:31:06 0|fmb-timetracker  |   "method": "GET",
+08:31:06 0|fmb-timetracker  |   "ip": "192.168.209.51:56560",
+08:31:06 0|fmb-timetracker  |   "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 Edg/139.0.0.0",
+08:31:06 0|fmb-timetracker  |   "sessionId": "IJJGWHeKhcKP1injvqcsk7ZG1frJL3-_"
+08:31:06 0|fmb-timetracker  | }
+08:31:06 0|fmb-timetracker  | 2025-08-30T08:31:06: 2025-08-30T15:31:06.881Z ðŸ”´ [FRONTEND-API] HTTP 401 error on https://timetracker.fmb.com/api/auth/user {
+08:31:06 0|fmb-timetracker  |   data: {
+08:31:06 0|fmb-timetracker  |     status: 401,
+08:31:06 0|fmb-timetracker  |     statusText: '',
+08:31:06 0|fmb-timetracker  |     responseText: '{"message":"Unauthorized"}',
+08:31:06 0|fmb-timetracker  |     url: 'https://timetracker.fmb.com/api/auth/user'
+08:31:06 0|fmb-timetracker  |   },
+08:31:06 0|fmb-timetracker  |   url: 'https://timetracker.fmb.com/',
+08:31:06 0|fmb-timetracker  |   userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 Edg/139.0.0.0',
+08:31:06 0|fmb-timetracker  |   ip: '192.168.209.51:56560',
+08:31:06 0|fmb-timetracker  |   sessionId: 'IJJGWHeKhcKP1injvqcsk7ZG1frJL3-_'
+08:31:06 0|fmb-timetracker  | }
