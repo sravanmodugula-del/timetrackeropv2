@@ -490,3 +490,131 @@ PRINT '🔧 Session store setup completed';
 PRINT '📋 Default admin user: admin@fmb.com (ID: admin-001)';
 PRINT '🌐 Database ready for TimeTracker application with session management';
 GO
+
+
+
+-- =============================================================================
+-- Session Maintenance Procedures for Optimized Performance
+-- =============================================================================
+
+-- Stored procedure for efficient session cleanup
+CREATE OR ALTER PROCEDURE sp_CleanupExpiredSessions
+    @BatchSize INT = 1000,
+    @DeletedCount INT OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @TotalDeleted INT = 0;
+    DECLARE @RowsDeleted INT = 1;
+    
+    -- Delete in batches to avoid blocking
+    WHILE @RowsDeleted > 0
+    BEGIN
+        DELETE TOP (@BatchSize) FROM sessions 
+        WHERE expires < GETDATE();
+        
+        SET @RowsDeleted = @@ROWCOUNT;
+        SET @TotalDeleted = @TotalDeleted + @RowsDeleted;
+        
+        -- Brief pause between batches to reduce blocking
+        IF @RowsDeleted > 0
+            WAITFOR DELAY '00:00:00.100'; -- 100ms delay
+    END
+    
+    SET @DeletedCount = @TotalDeleted;
+    
+    -- Update statistics after cleanup
+    IF @TotalDeleted > 0
+    BEGIN
+        UPDATE STATISTICS sessions;
+        PRINT CONCAT('Cleaned up ', @TotalDeleted, ' expired sessions');
+    END
+END;
+GO
+
+-- Stored procedure for session statistics
+CREATE OR ALTER PROCEDURE sp_GetSessionStats
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT 
+        COUNT(*) as total_sessions,
+        COUNT(CASE WHEN expires > GETDATE() THEN 1 END) as active_sessions,
+        COUNT(CASE WHEN expires <= GETDATE() THEN 1 END) as expired_sessions,
+        AVG(DATEDIFF(MINUTE, created_at, COALESCE(expires, GETDATE()))) as avg_session_duration_minutes,
+        MAX(created_at) as last_session_created,
+        MIN(expires) as earliest_expiry
+    FROM sessions;
+    
+    -- Show index usage statistics
+    SELECT 
+        i.name as index_name,
+        s.user_seeks,
+        s.user_scans,
+        s.user_lookups,
+        s.user_updates
+    FROM sys.dm_db_index_usage_stats s
+    INNER JOIN sys.indexes i ON s.object_id = i.object_id AND s.index_id = i.index_id
+    INNER JOIN sys.objects o ON i.object_id = o.object_id
+    WHERE o.name = 'sessions'
+    ORDER BY s.user_seeks + s.user_scans + s.user_lookups DESC;
+END;
+GO
+
+-- Create automated cleanup job
+IF NOT EXISTS (SELECT * FROM msdb.dbo.sysjobs WHERE name = 'TimeTracker_OptimizedSessionCleanup')
+BEGIN
+    EXEC msdb.dbo.sp_add_job
+        @job_name = 'TimeTracker_OptimizedSessionCleanup',
+        @enabled = 1,
+        @description = 'Optimized cleanup of expired TimeTracker sessions using batched deletes';
+        
+    EXEC msdb.dbo.sp_add_jobstep
+        @job_name = 'TimeTracker_OptimizedSessionCleanup',
+        @step_name = 'Cleanup_Expired_Sessions_Batched',
+        @command = '
+DECLARE @DeletedCount INT;
+EXEC sp_CleanupExpiredSessions @BatchSize = 1000, @DeletedCount = @DeletedCount OUTPUT;
+PRINT CONCAT(''Session cleanup completed. Deleted: '', @DeletedCount, '' sessions'');
+        ';
+        
+    EXEC msdb.dbo.sp_add_schedule
+        @schedule_name = 'Every_3_Minutes_Optimized',
+        @freq_type = 4,
+        @freq_interval = 1,
+        @freq_subday_type = 4,
+        @freq_subday_interval = 3;
+        
+    EXEC msdb.dbo.sp_attach_schedule
+        @job_name = 'TimeTracker_OptimizedSessionCleanup',
+        @schedule_name = 'Every_3_Minutes_Optimized';
+        
+    PRINT 'Optimized session cleanup job created successfully';
+END
+ELSE
+BEGIN
+    PRINT 'Optimized session cleanup job already exists';
+END;
+GO
+
+-- Create session monitoring view
+CREATE OR ALTER VIEW v_SessionMonitoring
+AS
+SELECT 
+    sid,
+    CASE 
+        WHEN expires > GETDATE() THEN 'Active'
+        WHEN expires <= GETDATE() THEN 'Expired'
+        ELSE 'No Expiry Set'
+    END as status,
+    created_at,
+    expires,
+    DATEDIFF(MINUTE, created_at, COALESCE(expires, GETDATE())) as duration_minutes,
+    LEN(session) as session_size_bytes
+FROM sessions;
+GO
+
+PRINT 'Session maintenance procedures created successfully';
+
