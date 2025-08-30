@@ -118,7 +118,9 @@ async function getSession() {
   // Use optimized MS SQL session store for on-premises production
   if (isProduction && isOnPrem) {
     try {
-      const MSSQLStore = (await import('connect-mssql-v2')).default;
+      // Import connect-mssql-v2 and initialize with session
+      const connectMssql = await import('connect-mssql-v2');
+      const MSSQLStore = connectMssql.default(session);
       const config = loadFmbOnPremConfig();
 
       // Enhanced session store configuration with proper error handling
