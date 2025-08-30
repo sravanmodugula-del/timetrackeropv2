@@ -121,7 +121,7 @@ async function getSession() {
       const MSSQLStore = (await import('connect-mssql-v2')).default;
       const sql = (await import('mssql')).default;
       
-      const pool = new sql.ConnectionPool({
+      const poolConfig = {
         server: process.env.FMB_DB_SERVER || 'localhost',
         database: process.env.FMB_DB_NAME || 'timetracker',
         user: process.env.FMB_DB_USER || 'sa',
@@ -134,18 +134,36 @@ async function getSession() {
           connectTimeout: 30000,
           requestTimeout: 30000
         }
-      });
+      };
 
+      const pool = new sql.ConnectionPool(poolConfig);
       await pool.connect();
       
+      // Ensure sessions table exists
+      const request = new sql.Request(pool);
+      await request.query(`
+        IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='sessions' AND xtype='U')
+        CREATE TABLE sessions (
+          sid NVARCHAR(255) NOT NULL PRIMARY KEY,
+          session NTEXT NOT NULL,
+          expires DATETIME NULL
+        )
+      `);
+      
       sessionConfig.store = new MSSQLStore({
-        config: pool.config,
-        table: 'sessions'
+        connectionString: `Server=${poolConfig.server},${poolConfig.port};Database=${poolConfig.database};User Id=${poolConfig.user};Password=${poolConfig.password};Encrypt=${poolConfig.options.encrypt};TrustServerCertificate=${poolConfig.options.trustServerCertificate};`,
+        table: 'sessions',
+        autoRemove: 'interval',
+        autoRemoveInterval: 10 // minutes
       });
       
-      enhancedLog('INFO', 'SESSION', 'Using MS SQL session store for on-premises production');
+      enhancedLog('INFO', 'SESSION', 'MS SQL session store initialized successfully');
     } catch (error) {
-      enhancedLog('WARN', 'SESSION', 'Failed to initialize MS SQL session store, falling back to memory store:', error);
+      enhancedLog('WARN', 'SESSION', 'Failed to initialize MS SQL session store:', {
+        message: error?.message || 'Unknown error',
+        code: error?.code || 'NO_CODE',
+        errno: error?.errno || 'NO_ERRNO'
+      });
       enhancedLog('INFO', 'SESSION', 'Using memory session store as fallback');
     }
   } else {
