@@ -116,43 +116,18 @@ async function getSession() {
   };
 
   // Try to use MS SQL session store in production, fallback to memory store
-  if (isProduction) {
+  if (isProduction && isOnPrem) {
     try {
-      // Import connect-mssql-v2 package (factory function pattern)
-      const connectMssql = await import('connect-mssql-v2');
-      const MSSQLStoreFactory = connectMssql.default || connectMssql;
-      const MSSQLStore = MSSQLStoreFactory(session);
-      
-      const config = loadFmbOnPremConfig();
-
-      // Create MS SQL session store with connect-mssql-v2
-      sessionConfig.store = new MSSQLStore({
-        server: config.database.server,
-        port: config.database.port,
-        database: config.database.database,
-        user: config.database.user,
-        password: config.database.password,
-        options: {
-          encrypt: config.database.encrypt,
-          trustServerCertificate: config.database.trustServerCertificate,
-          enableArithAbort: true,
-          connectTimeout: 30000,
-          requestTimeout: 30000
-        },
-        table: 'sessions',
-        autoRemove: 'interval',
-        autoRemoveInterval: 5, // 5 minutes
-        schemaName: 'dbo'
-      });
-
-      enhancedLog('INFO', 'SESSION', 'MS SQL session store initialized successfully');
+      // Use our custom MS SQL session store
+      const { CustomMSSQLStore } = await import('./session-store.js');
+      sessionConfig.store = new CustomMSSQLStore();
+      enhancedLog('INFO', 'SESSION', 'Custom MS SQL session store initialized successfully');
     } catch (error) {
-      enhancedLog('ERROR', 'SESSION', 'Failed to initialize MS SQL session store:', {
+      enhancedLog('ERROR', 'SESSION', 'Failed to initialize custom MS SQL session store:', {
         message: error?.message || 'Unknown error',
         code: error?.code || 'NO_CODE',
         name: error?.name || 'NO_NAME',
-        stack: error?.stack || 'NO_STACK',
-        fullError: JSON.stringify(error, Object.getOwnPropertyNames(error))
+        stack: error?.stack || 'NO_STACK'
       });
       
       // Use memorystore as fallback
@@ -167,6 +142,19 @@ async function getSession() {
       } catch (memoryStoreError) {
         enhancedLog('WARN', 'SESSION', 'Using default memory session store as final fallback');
       }
+    }
+  } else if (isProduction) {
+    // Non on-prem production - use memorystore
+    try {
+      const MemoryStore = (await import('memorystore')).default;
+      sessionConfig.store = MemoryStore(session)({
+        checkPeriod: 86400000,
+        ttl: sessionTtl,
+        max: 10000
+      });
+      enhancedLog('INFO', 'SESSION', 'Using memorystore for non on-prem production');
+    } catch (memoryStoreError) {
+      enhancedLog('WARN', 'SESSION', 'Using default memory session store as fallback');
     }
   } else {
     enhancedLog('INFO', 'SESSION', 'Using memory session store for development');
