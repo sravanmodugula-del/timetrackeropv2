@@ -115,15 +115,21 @@ async function getSession() {
     name: 'timetracker.sid'
   };
 
-  // Use optimized MS SQL session store for on-premises production
-  if (isProduction && isOnPrem) {
+  // Try to use MS SQL session store in production, fallback to memory store
+  if (isProduction) {
     try {
-      // Import connect-mssql-v2 - it's a factory function that takes session as parameter
-      const connectMssql = await import('connect-mssql-v2');
-      const MSSQLStore = (connectMssql.default || connectMssql)(session);
+      // Import connect-mssql-v2 package
+      const connectMssqlModule = await import('connect-mssql-v2');
+      
+      // Check if this is the default export pattern
+      const connectMssql = connectMssqlModule.default || connectMssqlModule;
+      
+      // connect-mssql-v2 is a factory function that returns the store constructor
+      const MSSQLStore = connectMssql(session);
+      
       const config = loadFmbOnPremConfig();
 
-      // Enhanced session store configuration with proper error handling
+      // Create MS SQL session store
       sessionConfig.store = new MSSQLStore({
         server: config.database.server,
         port: config.database.port,
@@ -135,21 +141,12 @@ async function getSession() {
           trustServerCertificate: config.database.trustServerCertificate,
           enableArithAbort: true,
           connectTimeout: 30000,
-          requestTimeout: 30000,
-          // Connection pool settings optimized for sessions
-          pool: {
-            max: 10,
-            min: 2,
-            idleTimeoutMillis: 30000,
-            acquireTimeoutMillis: 30000
-          }
+          requestTimeout: 30000
         },
         table: 'sessions',
         autoRemove: 'interval',
-        autoRemoveInterval: 5, // Cleanup every 5 minutes
-        schemaName: 'dbo',
-        useUTC: true,
-        disableTouch: false
+        autoRemoveInterval: 5,
+        schemaName: 'dbo'
       });
 
       enhancedLog('INFO', 'SESSION', 'MS SQL session store initialized successfully');
@@ -159,16 +156,12 @@ async function getSession() {
         code: error?.code || 'NO_CODE',
         name: error?.name || 'NO_NAME',
         stack: error?.stack || 'NO_STACK',
-        originalError: error?.originalError || 'NO_ORIGINAL',
-        number: error?.number || 'NO_NUMBER',
-        severity: error?.severity || 'NO_SEVERITY',
-        state: error?.state || 'NO_STATE',
         fullError: JSON.stringify(error, Object.getOwnPropertyNames(error))
       });
       enhancedLog('WARN', 'SESSION', 'Using memory session store as fallback');
     }
   } else {
-    enhancedLog('INFO', 'SESSION', 'Using memory session store');
+    enhancedLog('INFO', 'SESSION', 'Using memory session store for development');
   }
 
   return session(sessionConfig);
