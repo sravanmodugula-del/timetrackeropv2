@@ -1,0 +1,15 @@
+[TAILING] Tailing last 20 lines for [fmb-timetracker] process (change the value with --lines option)
+C:\fmb-timetracker\logs\out.log last 20 lines:
+C:\fmb-timetracker\logs\error.log last 20 lines:
+15|fmb-tim | You have triggered an unhandledRejection, you may have forgotten to catch a Promise rejection:
+15|fmb-tim | Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'helmet' imported from C:\fmb-timetracker\dist\index.js
+15|fmb-tim |     at Object.getPackageJSONURL (node:internal/modules/package_json_reader:255:9)
+15|fmb-tim |     at packageResolve (node:internal/modules/esm/resolve:767:81)
+15|fmb-tim |     at moduleResolve (node:internal/modules/esm/resolve:853:18)
+15|fmb-tim |     at defaultResolve (node:internal/modules/esm/resolve:983:11)
+15|fmb-tim |     at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:783:12)
+15|fmb-tim |     at #cachedDefaultResolve (node:internal/modules/esm/loader:707:25)
+15|fmb-tim |     at ModuleLoader.resolve (node:internal/modules/esm/loader:690:38)
+15|fmb-tim |     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:307:38)
+15|fmb-tim |     at ModuleJob._link (node:internal/modules/esm/module_job:183:49)
+15|fmb-tim |     at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
