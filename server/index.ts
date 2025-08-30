@@ -87,20 +87,25 @@ function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 7 days
   const isProduction = process.env.NODE_ENV === 'production';
 
-  if (!process.env.SESSION_SECRET) {
-    throw new Error('SESSION_SECRET environment variable is required');
+  // Check for session secret with better error handling
+  const sessionSecret = process.env.SESSION_SECRET || process.env.FMB_SESSION_SECRET;
+  if (!sessionSecret) {
+    enhancedLog('ERROR', 'SESSION', 'SESSION_SECRET or FMB_SESSION_SECRET environment variable is required');
+    throw new Error('SESSION_SECRET or FMB_SESSION_SECRET environment variable is required');
   }
 
-  if (isProduction && process.env.SESSION_SECRET.length < 32) {
-    console.warn('⚠️  WARNING: SESSION_SECRET should be at least 32 characters for production security');
+  if (isProduction && sessionSecret.length < 32) {
+    enhancedLog('WARN', 'SESSION', 'SESSION_SECRET should be at least 32 characters for production security');
   }
+
+  enhancedLog('INFO', 'SESSION', `Session configured for ${isProduction ? 'production' : 'development'} mode`);
 
   // Use MS SQL Server session store for production
   if (isProduction && isFmbOnPremEnvironment()) {
     // For FMB on-premises, use memory store for now
     // In production you might want to implement a custom MS SQL session store
     return session({
-      secret: process.env.SESSION_SECRET,
+      secret: sessionSecret,
       resave: false,
       saveUninitialized: false,
       cookie: {
@@ -114,7 +119,7 @@ function getSession() {
   } else {
     // Development configuration - memory store
     return session({
-      secret: process.env.SESSION_SECRET,
+      secret: sessionSecret,
       resave: true,
       saveUninitialized: true,
       rolling: true,
@@ -178,8 +183,17 @@ async function createServer() {
     crossOriginEmbedderPolicy: false,
   }));
 
-  // Session middleware
-  app.use(getSession());
+  // Session middleware with error handling
+  try {
+    app.use(getSession());
+    enhancedLog('INFO', 'SERVER', 'Session middleware configured successfully');
+  } catch (error) {
+    enhancedLog('ERROR', 'SERVER', 'Failed to configure session middleware:', {
+      message: error?.message || 'Unknown session error',
+      stack: error?.stack || 'NO_STACK'
+    });
+    throw error;
+  }
 
   // Body parsing middleware
   app.use(express.json({ limit: '10mb' }));
@@ -243,8 +257,8 @@ async function createServer() {
   const host = process.env.HOST || '0.0.0.0';
 
   try {
-    // Start server
-    app.listen(port, host, () => {
+    // Start server with better error handling
+    const server = app.listen(port, host, () => {
       enhancedLog('INFO', 'SERVER', `Server running on http://${host}:${port}`);
       enhancedLog('INFO', 'SERVER', `Environment: ${process.env.NODE_ENV || 'development'}`);
 
@@ -252,11 +266,34 @@ async function createServer() {
         enhancedLog('INFO', 'FMB-ONPREM', 'On-premises deployment active');
       }
     });
+
+    // Handle server errors
+    server.on('error', (error: any) => {
+      enhancedLog('ERROR', 'SERVER', 'Server error event:', {
+        message: error?.message || 'Unknown server error',
+        code: error?.code || 'NO_CODE',
+        errno: error?.errno || 'NO_ERRNO',
+        syscall: error?.syscall || 'NO_SYSCALL',
+        address: error?.address || 'NO_ADDRESS',
+        port: error?.port || 'NO_PORT',
+        stack: error?.stack || 'NO_STACK'
+      });
+      
+      if (error?.code === 'EADDRINUSE') {
+        enhancedLog('ERROR', 'SERVER', `Port ${port} is already in use. Please choose a different port.`);
+      }
+      
+      process.exit(1);
+    });
+
   } catch (error) {
-    enhancedLog('ERROR', 'SERVER', 'Failed to start server:', error?.message || 'Unknown error');
-    if (error?.stack) {
-      enhancedLog('ERROR', 'SERVER', 'Stack trace:', error.stack);
-    }
+    enhancedLog('ERROR', 'SERVER', 'Failed to start server (catch block):', {
+      message: error?.message || 'Unknown error',
+      name: error?.name || 'Unknown',
+      code: error?.code || 'NO_CODE',
+      stack: error?.stack || 'NO_STACK',
+      fullError: error
+    });
     
     // Don't exit on database connection errors in development
     if (process.env.NODE_ENV === 'development' && 
