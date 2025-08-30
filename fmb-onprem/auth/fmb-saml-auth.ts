@@ -4,7 +4,7 @@ import passport from "passport";
 import { Strategy as SamlStrategy } from "passport-saml";
 import { getFmbStorage } from "../config/fmb-database.js";
 import { loadFmbOnPremConfig } from "../config/fmb-env.js";
-import connectSQLServer from 'connect-mssql-v2';
+import connectMSSQLServer from 'connect-mssql-v2';
 
 // Enhanced logging utility
 function authLog(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: string, data?: any) {
@@ -27,21 +27,9 @@ export async function setupFmbSamlAuth(app: Express) {
   // Setup session management with memory store for now (MS SQL session store causes issues)
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
 
-  // Use memory store for sessions (can be upgraded to MS SQL store later if needed)
-  authLog('INFO', 'Using memory session store for FMB SAML authentication');
-
-  app.use(session({
-    secret: config.app.sessionSecret,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      httpOnly: true,
-      secure: true, // Always true for HTTPS-only deployment
-      maxAge: sessionTtl,
-      sameSite: 'lax',
-    },
-    name: 'fmb.timetracker.sid',
-  }));
+  // Session middleware is already configured in the main app
+  // No need to set up session middleware again here
+  authLog('INFO', 'Using existing session middleware for FMB SAML authentication');
 
   app.use(passport.initialize());
   app.use(passport.session());
