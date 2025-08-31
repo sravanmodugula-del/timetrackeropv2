@@ -27,7 +27,7 @@ export async function setupFmbSamlAuth(app: Express) {
   const samlStrategy = new SamlStrategy(
     {
       issuer: fmbConfig.saml.issuer,
-      idpCert: fmbConfig.saml.cert, // Fix: Use idpCert instead of cert
+      cert: fmbConfig.saml.cert, // IDP certificate for signature validation
       entryPoint: fmbConfig.saml.entryPoint,
       callbackUrl: fmbConfig.saml.callbackUrl,
       acceptedClockSkewMs: 5000,
@@ -37,8 +37,10 @@ export async function setupFmbSamlAuth(app: Express) {
       // Additional SAML validation settings
       validateInResponseTo: false,
       disableRequestedAuthnContext: true,
-      // Certificate validation
-      cert: fmbConfig.saml.cert
+      // Protocol binding
+      protocol: 'https://',
+      // Audience validation
+      audience: fmbConfig.saml.issuer
     },
     async (profile: any, done: any) => {
       try {
