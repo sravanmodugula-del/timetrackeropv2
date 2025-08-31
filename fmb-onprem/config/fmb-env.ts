@@ -64,8 +64,21 @@ function readCertificateFile(certPath: string): string {
     console.log(`🔍 [FMB-CONFIG] Looking for certificate at: ${fullPath}`);
 
     if (fs.existsSync(fullPath)) {
-      const certContent = fs.readFileSync(fullPath, 'utf8').trim();
+      let certContent = fs.readFileSync(fullPath, 'utf8').trim();
+      
+      // Remove any extra whitespace and ensure proper certificate format
+      certContent = certContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      
+      // Ensure the certificate has proper BEGIN/END markers
+      if (!certContent.includes('-----BEGIN CERTIFICATE-----')) {
+        throw new Error('Invalid certificate format: missing BEGIN marker');
+      }
+      if (!certContent.includes('-----END CERTIFICATE-----')) {
+        throw new Error('Invalid certificate format: missing END marker');
+      }
+      
       console.log(`✅ [FMB-CONFIG] Certificate loaded successfully from: ${fullPath}`);
+      console.log(`🔍 [FMB-CONFIG] Certificate length: ${certContent.length} characters`);
       return certContent;
     } else {
       console.error(`🔴 [FMB-CONFIG] Certificate file not found at: ${fullPath}`);
