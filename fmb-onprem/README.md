@@ -1,3 +1,120 @@
+
+# FMB TimeTracker - On-Premises Deployment
+
+This is the FMB TimeTracker application configured exclusively for on-premises deployment at First Midwest Bank.
+
+## Features
+
+- **SAML Authentication**: Integrated with RSA Identity Provider
+- **MS SQL Database**: Enterprise-grade database storage
+- **Session Management**: Database-backed session persistence
+- **Role-Based Access Control**: Admin, Manager, Project Manager, Employee, Viewer roles
+- **Time Tracking**: Comprehensive time entry and project management
+- **Enterprise Security**: Production-ready security configurations
+
+## Architecture
+
+### Authentication Flow
+1. User accesses application at `https://timetracker.fmb.com`
+2. Application redirects to RSA Identity Provider for SAML authentication
+3. After successful authentication, user is redirected back with SAML assertion
+4. Application validates assertion and creates session in MS SQL database
+5. User gains access to application based on their role
+
+### Database Schema
+- **Sessions**: Express session storage in MS SQL
+- **Users**: User profiles from SAML authentication
+- **Organizations**: FMB organizational structure
+- **Departments**: Department management
+- **Projects**: Project tracking and management
+- **Tasks**: Task assignment and tracking
+- **Time Entries**: Time logging and tracking
+- **Employees**: Employee profiles and assignments
+
+## Configuration
+
+### Required Environment Variables
+
+```bash
+# Database Configuration
+FMB_DATABASE_SERVER=HUB-SQL1TST-LIS
+FMB_DATABASE_NAME=timetracker
+FMB_DATABASE_USER=timetracker
+FMB_DATABASE_PASSWORD=your_secure_password
+
+# SAML Configuration
+FMB_SAML_ISSUER=https://timetracker.fmb.com
+FMB_SAML_CERT=your_saml_certificate
+FMB_SAML_ENTRY_POINT=https://your-rsa-idp.fmb.com/sso/saml
+FMB_SAML_CALLBACK_URL=https://timetracker.fmb.com/saml/acs
+
+# Session Security
+FMB_SESSION_SECRET=your_32_character_minimum_secret
+
+# Server Configuration
+FMB_PORT=5000
+FMB_HOST=0.0.0.0
+```
+
+## Deployment
+
+### Prerequisites
+- Windows Server 2022
+- IIS 10.0+
+- MS SQL Server 2019+
+- Node.js 20+
+- PM2 for process management
+
+### Installation Steps
+
+1. **Database Setup**
+   ```powershell
+   sqlcmd -S HUB-SQL1TST-LIS -d timetracker -i fmb-onprem/scripts/fmb-complete-setup.sql
+   ```
+
+2. **Application Deployment**
+   ```powershell
+   .\fmb-onprem\scripts\fmb-install.ps1
+   ```
+
+3. **IIS Configuration**
+   ```powershell
+   .\fmb-onprem\scripts\fmb-iis-config.ps1
+   ```
+
+4. **Start Application**
+   ```powershell
+   .\fmb-onprem\scripts\fmb-deploy.ps1
+   ```
+
+## Security Features
+
+- **HttpOnly Cookies**: Session cookies are not accessible via JavaScript
+- **SAML Integration**: Enterprise SSO with RSA Identity Provider
+- **Role-Based Access**: Granular permissions based on user roles
+- **Database Session Store**: Sessions persisted in MS SQL for clustering
+- **SQL Injection Protection**: Parameterized queries throughout
+- **CSRF Protection**: Built-in CSRF protection mechanisms
+
+## Monitoring
+
+- **Session Health Monitoring**: Automatic monitoring of session store health
+- **Database Health Checks**: Regular database connectivity validation
+- **Application Logs**: Comprehensive logging for troubleshooting
+- **Performance Metrics**: Session and database performance tracking
+
+## Support
+
+For technical support and configuration assistance, contact the FMB IT Department.
+
+## Version Information
+
+- **Version**: 1.0.0-fmb
+- **Environment**: On-Premises Production
+- **Authentication**: SAML 2.0
+- **Database**: MS SQL Server
+- **Session Store**: Custom MS SQL Session Store
+
 # FMB TimeTracker On-Premises Setup
 
 This directory contains all the necessary files and configurations for deploying TimeTracker on FMB's on-premises infrastructure.
@@ -21,8 +138,8 @@ This directory contains all the necessary files and configurations for deploying
 
 ### 2. Database Setup
 ```powershell
-# Run the database setup script on HUB-SQL1TST-LIS
-sqlcmd -S HUB-SQL1TST-LIS -d timetracker -U timetracker -P "iTT!\$Lo7gm\"i\'JAg~5Y\\" -i fmb-setup-db.sql
+# Run the complete database setup script on HUB-SQL1TST-LIS
+sqlcmd -S HUB-SQL1TST-LIS -d timetracker -U timetracker -P "iTT!\$Lo7gm\"i\'JAg~5Y\\" -i scripts\fmb-complete-setup.sql
 ```
 
 ### 3. Application Installation
@@ -50,7 +167,7 @@ Edit `C:\fmb-timetracker\.env` with your environment-specific values:
 cd C:\fmb-timetracker
 
 # Start with PM2
-npx pm2 start ecosystem.config.js
+npx pm2 start ecosystem.config.cjs
 
 # Or start Windows service (if installed)
 net start FMBTimeTracker
@@ -79,7 +196,7 @@ Get-Content C:\fmb-timetracker\logs\combined.log -Tail 50 -Wait
 npx pm2 status
 
 # Restart application
-npx pm2 restart ecosystem.config.js
+npx pm2 restart ecosystem.config.cjs
 
 # Windows Service (if using service mode)
 net start FMBTimeTracker

@@ -1,12 +1,10 @@
-import type { Express, RequestHandler } from "express";
-import session from "express-session";
-import passport from "passport";
-import { Strategy as SamlStrategy } from "passport-saml";
-import { getFmbStorage } from "../config/fmb-database.js";
-import { loadFmbOnPremConfig } from "../config/fmb-env.js";
-import connectMSSQLServer from 'connect-mssql-v2';
+import passport from 'passport';
+import { Strategy as SamlStrategy } from '@node-saml/passport-saml';
+import type { Express } from 'express';
+import { getFmbStorage } from '../config/fmb-database.js';
+import { getFmbConfig } from '../config/fmb-env.js';
 
-// Enhanced logging utility
+// Enhanced authentication logging
 function authLog(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: string, data?: any) {
   const timestamp = new Date().toISOString();
   const emoji = level === 'ERROR' ? '🔴' : level === 'WARN' ? '🟡' : level === 'INFO' ? '🔵' : '🟢';
@@ -20,110 +18,120 @@ function authLog(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: string, da
 }
 
 export async function setupFmbSamlAuth(app: Express) {
-  authLog('INFO', 'Initializing FMB SAML Authentication...');
+  authLog('INFO', 'Initializing FMB SAML Authentication');
 
-  const config = loadFmbOnPremConfig();
-
-  // Setup session management with memory store for now (MS SQL session store causes issues)
-  const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
-
-  // Session middleware is already configured in the main app
-  // No need to set up session middleware again here
-  authLog('INFO', 'Using existing session middleware for FMB SAML authentication');
-
-  app.use(passport.initialize());
-  app.use(passport.session());
+  const fmbConfig = getFmbConfig();
+  const fmbStorage = getFmbStorage();
 
   // Configure SAML strategy
   const samlStrategy = new SamlStrategy(
     {
-      entryPoint: config.saml.ssoUrl,
-      issuer: config.saml.entityId,
-      callbackUrl: config.saml.acsUrl,
-      cert: config.saml.certificate,
+      issuer: fmbConfig.saml.issuer,
+      idpCert: fmbConfig.saml.cert, // Fix: Use idpCert instead of cert
+      entryPoint: fmbConfig.saml.entryPoint,
+      callbackUrl: fmbConfig.saml.callbackUrl,
+      acceptedClockSkewMs: 5000,
+      identifierFormat: fmbConfig.saml.nameIdFormat,
+      wantAssertionsSigned: true,
+      signatureAlgorithm: 'sha256',
+      // Additional SAML validation settings
       validateInResponseTo: false,
       disableRequestedAuthnContext: true,
-      passReqToCallback: true, // Enable req parameter in callback
+      // Certificate validation
+      cert: fmbConfig.saml.cert
     },
-    async (req: any, profile: any, done: any) => {
+    async (profile: any, done: any) => {
       try {
-        // Extract user data from SAML response
-        const userData = {
-          id: profile.nameID,
-          email: profile.nameID, // nameID is the email
-          firstName: profile.firstName || '',
-          lastName: profile.lastName || '',
-          employeeId: profile.employeeId || '',
-          department: profile.department || '',
-          role: 'employee' as const // Default role, can be updated later
-        };
-
-        authLog('INFO', 'SAML authentication successful', {
+        authLog('INFO', 'SAML profile received', {
           nameID: profile.nameID,
-          email: userData.email,
-          firstName: userData.firstName,
-          lastName: userData.lastName
+          email: profile.email || profile.nameID,
+          firstName: profile.firstName,
+          lastName: profile.lastName
         });
 
-        try {
-          // Import storage functions
-          const fmbStorage = getFmbStorage();
+        // Extract user information from SAML profile
+        const email = profile.email || profile.nameID;
+        const firstName = profile.firstName || profile.givenName || email.split('@')[0];
+        const lastName = profile.lastName || profile.surname || '';
 
-          // Ensure user exists in database
-          await fmbStorage.upsertUser({
-            id: userData.id,
-            email: userData.email,
-            firstName: userData.firstName,
-            lastName: userData.lastName,
-            role: userData.role,
-            employeeId: userData.employeeId,
-            department: userData.department
-          });
+        // Upsert user in database first
+        const upsertedUser = await fmbStorage.upsertUser({
+          id: email,
+          email: email,
+          first_name: firstName,
+          last_name: lastName,
+          profile_image_url: null,
+          role: 'user',
+          organization_id: null,
+          department: null
+        });
 
-          authLog('INFO', `User upserted in database: ${userData.email}`);
+        authLog('INFO', 'User upserted in database', { email });
 
-          // Store user data in session
-          if (req.session) {
-            req.session.user = userData;
-          }
+        // Create session user object
+        const sessionUser = {
+          ...upsertedUser,
+          userId: upsertedUser.id,
+          sub: upsertedUser.id
+        };
 
-          return done(null, userData);
-        } catch (dbError) {
-          authLog('ERROR', `Failed to upsert user in database:`, dbError);
-          // Continue with authentication even if database upsert fails
-          return done(null, userData);
-        }
+        authLog('INFO', 'User authenticated and stored', { email });
+        done(null, sessionUser);
       } catch (error) {
-        authLog('ERROR', 'Error processing SAML profile:', error);
-        return done(error);
+        authLog('ERROR', 'SAML authentication error', error);
+        done(error);
       }
     }
   );
 
-  passport.use(samlStrategy);
+  passport.use('saml', samlStrategy);
 
+  // Serialize user for session with enhanced security logging
   passport.serializeUser((user: any, done) => {
-    done(null, user.id);
+    const userId = user.userId || user.email;
+    authLog('DEBUG', 'Serializing user for session', {
+      userId: userId,
+      timestamp: new Date().toISOString(),
+      source: 'saml'
+    });
+    done(null, userId);
   });
 
+  // Deserialize user from session with session validation
   passport.deserializeUser(async (id: string, done) => {
     try {
       const fmbStorage = getFmbStorage();
       const user = await fmbStorage.getUser(id);
 
-      // Handle cases where Replit and FMB SAML user structures might differ
-      if (user && !user.sub && user.id) {
-        // If 'user' object from FMB storage doesn't have 'sub' but has 'id',
-        // and we are expecting 'sub' for Replit auth, map 'id' to 'sub'.
-        // This ensures compatibility with endpoints expecting 'user.sub'.
-        done(null, { ...user, sub: user.id });
+      if (user) {
+        // Create consistent user object structure with security metadata
+        const sessionUser = {
+          ...user,
+          userId: user.id,
+          sub: user.id, // For compatibility with existing routes
+          sessionStartTime: Date.now(),
+          lastActivity: Date.now()
+        };
+
+        authLog('DEBUG', 'User deserialized successfully', {
+          userId: id,
+          email: user.email
+        });
+
+        done(null, sessionUser);
       } else {
-        done(null, user);
+        authLog('WARN', 'User not found during deserialization', { userId: id });
+        done(null, false);
       }
     } catch (error) {
+      authLog('ERROR', 'Error during user deserialization', { userId: id, error: error?.message });
       done(error);
     }
   });
+
+  // Initialize passport
+  app.use(passport.initialize());
+  app.use(passport.session());
 
   // SAML routes
   app.get('/api/login', (req, res, next) => {
@@ -135,10 +143,66 @@ export async function setupFmbSamlAuth(app: Express) {
   });
 
   app.post('/saml/acs', (req, res, next) => {
-    authLog('INFO', 'SAML ACS callback received', { ip: req.ip, userAgent: req.get('User-Agent') });
-    passport.authenticate('saml', {
-      failureRedirect: '/login-error',
-      successRedirect: '/'
+    authLog('INFO', 'SAML ACS callback received', {
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      timestamp: new Date().toISOString()
+    });
+
+    passport.authenticate('saml', (err, user, info) => {
+      if (err) {
+        authLog('ERROR', 'SAML authentication error', { error: err.message, info });
+        return res.redirect('/login-error');
+      }
+
+      if (!user) {
+        authLog('WARN', 'SAML authentication failed - no user', { info });
+        return res.redirect('/login-error');
+      }
+
+      // Regenerate session ID after successful SAML authentication (security best practice)
+      req.session.regenerate((regenerateErr) => {
+        if (regenerateErr) {
+          authLog('ERROR', 'Session regeneration failed', { error: regenerateErr.message });
+          return res.redirect('/login-error');
+        }
+
+        // Log the user in
+        req.logIn(user, (loginErr) => {
+          if (loginErr) {
+            authLog('ERROR', 'Login failed after SAML validation', { error: loginErr.message });
+            return res.redirect('/login-error');
+          }
+
+          // Set user in session for authentication state
+          req.session.user = {
+            id: user.id,
+            email: user.email,
+            first_name: user.first_name,
+            last_name: user.last_name,
+            role: user.role,
+            organization_id: user.organization_id,
+            department: user.department,
+            is_active: user.is_active
+          };
+
+          // Mark session as authenticated
+          req.session.isAuthenticated = true;
+          req.session.authTime = Date.now();
+
+          // Save session explicitly
+          req.session.save((err) => {
+            if (err) {
+              console.log('🔴 [FMB-SAML] Session save error:', err);
+            } else {
+              console.log('🔵 [FMB-SAML] User session established and saved:', user.email);
+            }
+
+            // Redirect to root application after successful authentication
+            res.redirect('/');
+          });
+        });
+      });
     })(req, res, next);
   });
 
@@ -155,122 +219,49 @@ export async function setupFmbSamlAuth(app: Express) {
     });
   });
 
-  // Error handling route for SAML failures
+  // Error handling routes
   app.get('/login-error', (req, res) => {
-    authLog('ERROR', 'SAML authentication error page accessed', { ip: req.ip });
+    authLog('ERROR', 'SAML login error page accessed');
     res.status(401).send(`
-      <!DOCTYPE html>
       <html>
-      <head><title>Authentication Error</title></head>
-      <body>
-        <h1>Authentication Failed</h1>
-        <p>There was an error during the SAML authentication process.</p>
-        <p><a href="/api/login">Try Again</a></p>
-      </body>
+        <head><title>FMB TimeTracker - Login Error</title></head>
+        <body>
+          <h1>Authentication Error</h1>
+          <p>There was an error during the authentication process.</p>
+          <p><a href="/api/login">Try logging in again</a></p>
+        </body>
       </html>
     `);
   });
 
-  authLog('INFO', 'FMB SAML Authentication configured successfully');
+  authLog('INFO', 'FMB SAML Authentication setup completed');
 }
 
-export function getFmbSamlMetadata(): string {
-  const config = loadFmbOnPremConfig();
+// Authentication middleware for FMB
+export const isAuthenticated = (req: any, res: any, next: any) => {
+  authLog('DEBUG', `FMB Authentication check for ${req.method} ${req.path}`, {
+    ip: req.ip,
+    sessionId: req.sessionID,
+    isAuthenticated: req.isAuthenticated ? req.isAuthenticated() : false
+  });
 
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" 
-                     entityID="${config.saml.entityId}">
-  <md:SPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
-    <md:AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
-                                Location="${config.saml.acsUrl}" index="0" isDefault="true"/>
-  </md:SPSSODescriptor>
-</md:EntityDescriptor>`;
-}
+  const hasSession = !!req.session;
+  const isAuthenticated = hasSession && !!req.session.user && req.session.isAuthenticated === true;
 
-export const isAuthenticated: RequestHandler = async (req, res, next) => {
-  try {
-    authLog('DEBUG', `Authentication check for ${req.method} ${req.path}`, {
+  if (!isAuthenticated) {
+    authLog('WARN', 'Unauthorized access attempt', {
+      path: req.path,
+      method: req.method,
       ip: req.ip,
-      userAgent: req.get('User-Agent'),
-      sessionId: req.sessionID,
-      hasSession: !!req.session,
-      isAuthenticated: req.isAuthenticated ? req.isAuthenticated() : false
-    });
-
-    // CRITICAL SECURITY: Only allow test user in development mode
-    if (process.env.NODE_ENV === 'development' && (!req.isAuthenticated() || !req.user)) {
-      authLog('DEBUG', 'Development mode: Creating test admin user');
-      authLog('WARN', 'SECURITY: Authentication bypass active - DO NOT USE IN PRODUCTION');
-
-      // Create a mock authenticated user for testing
-      const testUser = {
-        id: "test-admin-user",
-        email: "admin@test.com",
-        firstName: "Test",
-        lastName: "Admin",
-        profileImageUrl: null,
-      };
-
-      req.user = testUser;
-
-      // Ensure the test user exists in database
-      try {
-        const fmbStorage = getFmbStorage();
-        await fmbStorage.upsertUser(testUser);
-
-        // In development mode, respect the current database role instead of forcing admin
-        const currentUser = await fmbStorage.getUser("test-admin-user");
-        const currentRole = currentUser?.role || "admin";
-
-        // Only set admin role if user doesn't exist or has no role
-        if (!currentUser || !currentUser.role) {
-          await fmbStorage.updateUserRole("test-admin-user", "admin");
-          authLog('INFO', 'Test admin user authenticated successfully');
-        } else {
-          authLog('INFO', `Test user authenticated with current role: ${currentRole}`);
-        }
-      } catch (dbError) {
-        authLog('ERROR', 'Failed to setup test user:', dbError);
-      }
-
-      return next();
-    }
-
-    if (!req.isAuthenticated() || !req.user) {
-      authLog('WARN', 'Unauthorized access attempt', {
-        path: req.path,
-        method: req.method,
-        ip: req.ip,
-        userAgent: req.get('User-Agent'),
-        sessionId: req.sessionID
-      });
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    const user = req.user as any;
-    authLog('DEBUG', 'User authenticated', {
-      userId: user.id || 'unknown',
-      email: user.email || 'unknown',
       sessionId: req.sessionID
     });
-
-    authLog('DEBUG', 'Authentication successful, proceeding to next middleware');
-    return next();
-
-  } catch (error) {
-    authLog('ERROR', 'Authentication middleware error:', {
-      error: error instanceof Error ? {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      } : error,
-      request: {
-        method: req.method,
-        path: req.path,
-        ip: req.ip,
-        sessionId: req.sessionID
-      }
-    });
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(401).json({ message: "Unauthorized - Please log in via SAML" });
   }
+
+  authLog('DEBUG', 'FMB Authentication successful', {
+    userId: req.user.userId || req.user.email,
+    sessionId: req.sessionID
+  });
+
+  next();
 };
