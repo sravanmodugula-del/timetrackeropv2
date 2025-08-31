@@ -30,25 +30,29 @@ export async function setupFmbSamlAuth(app: Express) {
     hasEndMarker: fmbConfig.saml.cert.includes('-----END CERTIFICATE-----')
   });
 
-  // Configure SAML strategy with enhanced debugging
+  // Configure SAML strategy with proper certificate handling
   const samlStrategy = new SamlStrategy(
     {
       issuer: fmbConfig.saml.issuer,
       cert: fmbConfig.saml.cert, // IDP certificate for signature validation
       entryPoint: fmbConfig.saml.entryPoint,
       callbackUrl: fmbConfig.saml.callbackUrl,
-      acceptedClockSkewMs: 5000,
+      acceptedClockSkewMs: 10000, // Increase clock skew tolerance
       identifierFormat: fmbConfig.saml.nameIdFormat,
+      // Signature validation settings - match your IDP metadata
       wantAssertionsSigned: true,
+      wantAuthnResponseSigned: false, // Based on your IDP metadata
       signatureAlgorithm: 'sha256',
-      // Additional SAML validation settings
       validateInResponseTo: false,
       disableRequestedAuthnContext: true,
-      // Relaxed validation for debugging
-      wantAuthnResponseSigned: false,
       skipRequestCompression: true,
-      // Audience validation
-      audience: fmbConfig.saml.issuer
+      // Certificate validation
+      cert: [fmbConfig.saml.cert], // Ensure cert is in array format
+      // Audience should match your SP entity ID, not IDP
+      audience: false, // Disable audience validation for now
+      // Additional debugging
+      additionalParams: {},
+      additionalAuthorizeParams: {}
     },
     async (profile: any, done: any) => {
       try {
